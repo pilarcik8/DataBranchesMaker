@@ -3,6 +3,7 @@ using Bogus.Bson;
 using System;
 using System.IO;
 using System.Xml.Serialization;
+using static System.Collections.Specialized.BitVector32;
 
 
 namespace TestKniznice
@@ -21,12 +22,12 @@ namespace TestKniznice
         {
             // Vytvorenie vyslednej osoby
             var faker = new Faker("en");
-            Person result = CreateFakePerson(faker);
+            Person resultPerson = CreateFakePerson(faker);
 
-            // Tvorba 3 branchov
-            Person leftPerson = result;
-            Person rightPerson = result;
-            Person basePeson = result;
+            // Tvorba 2 branchov a ich predka
+            Person leftPerson = resultPerson.Clone();
+            Person rightPerson = resultPerson.Clone();
+            Person basePeson = resultPerson.Clone();
 
             int atCount = typeof(Person).GetProperties().Length;
             Stack<AtributeAction> RightAtributeActions = new Stack<AtributeAction>(atCount);
@@ -36,24 +37,80 @@ namespace TestKniznice
 
             for (int i = 0; i < atCount; i++)
             {
-                AtributeAction actionR = GetAtributeAction();
-                AtributeAction actionL = GetAtributeActionWitourConfilct(actionR);
+                AtributeAction actionR, actionL;
+                if (i % 2 == 0)
+                {
+                    actionR = GetAtributeAction();
+                    actionL = GetAtributeActionWitourConfilct(actionR);
+                }
+                else {                  
+                    
+                     actionL = GetAtributeAction();
+                     actionR = GetAtributeActionWitourConfilct(actionL);
+                }
                 AtributeAction actionB = GetBaseWinningAcion(actionR, actionL);
 
                 RightAtributeActions.Push(actionR);
                 LeftAtributeActions.Push(actionL);
                 BaseAtributeActions.Push(actionB);
 
-                ExecuteAction(rightPerson, i, actionR, faker);
-                ExecuteAction(leftPerson, i, actionL, faker);
+                if (actionR != actionL)
+                {
+                    //jedna z akcii je KEEP
+                    Console.WriteLine($"Right action");
+                    ExecuteAction(rightPerson, i, actionR, faker);
+                    Console.WriteLine($"Left action");
+                    ExecuteAction(leftPerson, i, actionL, faker);
+                }
+                else 
+                {
+                    Console.WriteLine($"Both action");
+                    ExecuteSameAction(rightPerson, leftPerson, i, actionR, faker);
+                }
+                Console.WriteLine($"Base action");
                 ExecuteAction(basePeson, i, actionB, faker);
+                //TODO: base ma mat akciu, ktora je identicka s jednou z branchov
             }
-            //Vytvorenie xml
-            ExportPerson(result, "res");
-            ExportPerson(rightPerson, "right");
-            ExportPerson(leftPerson, "left");
-            ExportPerson(basePeson, "base");
 
+            /*
+            Console.WriteLine("\nbase\n");
+            Console.WriteLine(basePeson.ToString());
+            Console.WriteLine("\nleft\n");
+            Console.WriteLine(leftPerson.ToString());
+            Console.WriteLine("\nright\n");
+            Console.WriteLine(rightPerson.ToString());
+            Console.WriteLine("\nresult\n");
+            Console.WriteLine(resultPerson.ToString());
+
+            //Vytvorenie xml
+            //ExportPerson(resultPerson, "res");
+            //ExportPerson(rightPerson, "right");
+            //ExportPerson(leftPerson, "left");
+            //ExportPerson(basePeson, "base");
+            */
+
+        }
+
+        private static void ExecuteSameAction(Person rightPerson, Person leftPerson, int i, AtributeAction action, Faker faker)
+        {
+            if (action == AtributeAction.KEEP)
+                return;
+
+            else if (action == AtributeAction.CHANGE)
+            {   
+                string change = rightPerson.ChangeAttribute(i, faker);
+                leftPerson.SetAttribute(i, change);
+            }
+
+            else if (action == AtributeAction.REMOVE)
+            {
+                // potrebujem odstranit dany atribut z triedy (aspon nastavit aby sa neulozil do xml ked ho expornem)
+            }
+
+            else if (action == AtributeAction.ADD)
+            {
+                // potrebujem pridat novy atribut do triedy pred tento atribut (aspon nastavit aby sa ulozil do xml ked ho expornem)
+            }
         }
 
         private static void ExecuteAction(Person person, int i, AtributeAction action, Faker faker)
@@ -136,12 +193,10 @@ namespace TestKniznice
             {
                 // Relatívna cesta ku koreňu projektu
                 string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "vytvoreneSubory");
+                string outputDir = Path.Combine(projectDir, "createdFiles");
 
                 // Vytvorenie priečinku, ak neexistuje
                 Directory.CreateDirectory(outputDir);
-
-                Console.WriteLine($"Výstupné súbory budú uložené do: {outputDir}");
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}.xml");
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(Person));
