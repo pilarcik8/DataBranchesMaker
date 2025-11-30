@@ -1,0 +1,76 @@
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.csproj.AssemblyReference.cache
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.AssemblyInfoInputs.cache
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.AssemblyInfo.cs
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.sourcelink.json
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\Main.exe
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\Main.deps.json
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\Main.runtimeconfig.json
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\Main.dll
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\Main.pdb
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\Bogus.dll
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\KST.SharpDiffLib.dll
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\bin\Debug\net8.0\KST.SharpDiffLib.pdb
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.csproj.Up2Date
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.dll
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\refint\Main.dll
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.pdb
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\Main.genruntimeconfig.cache
+C:\Users\Admin\Source\Repos\SharpDiffLib\Main\obj\Debug\net8.0\ref\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\Main.exe
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\Main.deps.json
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\Main.runtimeconfig.json
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\Main.pdb
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\Bogus.dll
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\KST.SharpDiffLib.dll
+C:\Users\Admin\Desktop\SharpDiffLib\Main\bin\Debug\net8.0\KST.SharpDiffLib.pdb
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.csproj.AssemblyReference.cache
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.AssemblyInfo.cs
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.sourcelink.json
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.csproj.Up2Date
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\refint\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.pdb
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\Main.genruntimeconfig.cache
+C:\Users\Admin\Desktop\SharpDiffLib\Main\obj\Debug\net8.0\ref\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\bin\Debug\net8.0\Main.exe
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\bin\Debug\net8.0\Main.deps.json
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\bin\Debug\net8.0\Main.runtimeconfig.json
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\bin\Debug\net8.0\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\bin\Debug\net8.0\Main.pdb
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\bin\Debug\net8.0\Bogus.dll
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.csproj.AssemblyReference.cache
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.AssemblyInfo.cs
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.sourcelink.json
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.csproj.Up2Date
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\refint\Main.dll
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.pdb
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\Main.genruntimeconfig.cache
+C:\Users\Admin\Desktop\SharpDiffLib – kópia\Main\obj\Debug\net8.0\ref\Main.dll
+C:\Users\Admin\Desktop\DataMaker\Main\bin\Debug\net8.0\Main.exe
+C:\Users\Admin\Desktop\DataMaker\Main\bin\Debug\net8.0\Main.deps.json
+C:\Users\Admin\Desktop\DataMaker\Main\bin\Debug\net8.0\Main.runtimeconfig.json
+C:\Users\Admin\Desktop\DataMaker\Main\bin\Debug\net8.0\Main.dll
+C:\Users\Admin\Desktop\DataMaker\Main\bin\Debug\net8.0\Main.pdb
+C:\Users\Admin\Desktop\DataMaker\Main\bin\Debug\net8.0\Bogus.dll
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.csproj.AssemblyReference.cache
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.AssemblyInfo.cs
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.sourcelink.json
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.csproj.Up2Date
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.dll
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\refint\Main.dll
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.pdb
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\Main.genruntimeconfig.cache
+C:\Users\Admin\Desktop\DataMaker\Main\obj\Debug\net8.0\ref\Main.dll

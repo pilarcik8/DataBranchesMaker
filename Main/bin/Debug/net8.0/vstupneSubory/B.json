@@ -1,0 +1,21 @@
+{
+  "Title": "Ms.",
+  "FirstName": "Bernice",
+  "LastName": "Fahey",
+  "Email": "Zack.Jacobi35@yahoo.com",
+  "Phone": "(203) 722-8968 x05074",
+  "Gender": "Female",
+  "Age": 49,
+  "Company": "Bogan, Cremin and Kautzer",
+  "JobTitle": "Dynamic Data Facilitator",
+  "CreditCardNumber": "5186-7444-4872-5836",
+  "Address": {
+    "Street": "Alycia Grove",
+    "StreetNumber": "741",
+    "City": "West Vicentaport",
+    "County": "Borders",
+    "State": "Colorado",
+    "ZipCode": "60172",
+    "Country": "Greenland"
+  }
+}

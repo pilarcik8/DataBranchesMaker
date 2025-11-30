@@ -1,0 +1,409 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>KST.SharpDiffLib</name>
+    </assembly>
+    <members>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions">
+            <summary>
+            Extension methods for simpler patch application algorithm rules definition using fluent syntax.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyKeyValueCollectionPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.ApplyPatch.Collection.KeyValue.ApplyKeyValueCollectionPatchRules{``0}})">
+            <summary>
+            Define the key value collection patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyKeyValueCollectionPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the key value collection patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyOrderedCollectionPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.ApplyPatch.Collection.Ordered.ApplyOrderedCollectionPatchRules{``0}})">
+            <summary>
+            Define the ordered collection patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyOrderedCollectionPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the ordered collection patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyUnorderedCollectionPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.ApplyPatch.Collection.Unordered.ApplyUnorderedCollectionPatchRules{``0}})">
+            <summary>
+            Define the unordered collection patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyUnorderedCollectionPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the unordered collection patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyClassPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.ApplyPatch.Common.Class.ApplyClassPatchRules{``0}})">
+            <summary>
+            Define the class patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyClassPatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the class patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyValuePatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.ApplyPatch.Common.Value.ApplyValuePatchRules{``0}})">
+            <summary>
+            Define the simple value patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.ApplyPatchRulesExtensions.ApplyValuePatchRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the simple value patch application algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm">
+            <summary>
+            Algorithm for patch aplication. Algorithm takes an object and a diff
+            and applies the diff to the object. This interface should not be implemented directly
+            by any algorithm. Use <see cref="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm`1"/> instead.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm.Apply(System.Object,KST.SharpDiffLib.DiffResult.Base.IDiff)">
+            <summary>
+            Applies the patch to the source. Resulting object will be other instance than the source object
+            in the most cases. Algorithm will never change the source object.
+            </summary>
+            <param name="source">Source object</param>
+            <param name="patch">Patch that should be applied to the source</param>
+            <returns>Object after the patch application.</returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm`1">
+            <summary>
+            Type-safe version of the <see cref="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm"/>. It is prefered to use this interface on
+            the client side whenever possible. Every patch algorithm should implement this version of the
+            IApplyPatchAlgorithm.
+            </summary>
+            <typeparam name="TType">Type of the object to patch.</typeparam>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm`1.Apply(`0,KST.SharpDiffLib.DiffResult.Base.IDiff{`0})">
+            <summary>
+            Applies the patch to the source. Resulting object will be other instance than the source object
+            in the most cases. Algorithm will never change the source object.
+            </summary>
+            <param name="source">Source object</param>
+            <param name="patch">Patch that should be applied to the source</param>
+            <returns>Object after the patch application.</returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithmRules">
+            <summary>
+            Rules for the patch application algorithms. Interface is designed to be used client side only
+            and it should never be implemented directly by some class. Use generic version instead.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithmRules.GetAlgorithm``1">
+            <summary>
+            Creates an apply patch algorithm instance for the given object type. Every implementation
+            of this method should test whether <typeparamref name="TType"/> type could be used with
+            the defined rules.
+            </summary>
+            <typeparam name="TType">Type of the patched object</typeparam>
+            <returns>Apply patch algorithm instance</returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithmRules`1">
+            <summary>
+            Type-safe version of the <see cref="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithmRules"/> interface.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Collection.KeyValue.ApplyKeyValueCollectionPatchRules`1">
+            <summary>
+            Rules for key value collection patch application algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Collection.Ordered.ApplyOrderedCollectionPatchRules`1">
+            <summary>
+            Rules for ordered collection patch application algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Collection.Unordered.ApplyUnorderedCollectionPatchRules`1">
+            <summary>
+            Rules for unordered collection patch application algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Common.Class.ApplyClassPatchRules`1">
+            <summary>
+            Rules for class patch application algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Common.Value.ApplyValuePatchRules`1">
+            <summary>
+            Rules for simple value patch application.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.ApplyPatch.NamespaceDoc">
+            <summary>
+            The <see cref="N:KST.SharpDiffLib.Algorithms"/> namespace contains algorithms for the patch application.
+            See <see cref="T:KST.SharpDiffLib.Algorithms.ApplyPatch.Base.IApplyPatchAlgorithm`1"/> for more information.
+            </summary>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm">
+            <summary>
+            Algorithm for object comparison. Algorithm takes two objects and compute diff between
+            them. This interface should not be implemented directly by any algorithm.
+            Use <see cref="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm`1"/> instead.
+            </summary>
+        </member>
+        <member name="P:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm.IsDirect">
+            <summary>
+            Contains true, if objects comparison defined by given algorithm can be replaced
+            by standard equality comparison.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm.Compute(System.Object,System.Object)">
+            <summary>
+            Computes diff between the given objects.
+            </summary>
+            <param name="base">Base version of the object.</param>
+            <param name="changed">Compared version of the object.</param>
+            <returns>Diff </returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm`1">
+            <summary>
+            Type-safe version of the <see cref="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm"/>. It is prefered to use this interface on
+            the client side whenever possible. Every diff algorithm should implement this version of the
+            IDiffAlgorithm.
+            </summary>
+            <typeparam name="TType">Type of the object to diff.</typeparam>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm`1.Compute(`0,`0)">
+            <summary>
+            Computes diff between the given objects.
+            </summary>
+            <param name="base">Base version of the object.</param>
+            <param name="changed">Compared version of the object.</param>
+            <returns>Diff </returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithmRules">
+            <summary>
+            Rules for diff algorithm. Interface is designed to be used client side only
+            and it should never be implemented directly by some class. Use generic version instead.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithmRules.GetAlgorithm``1">
+            <summary>
+            Creates an diff algorithm instance for the given object type. Every implementation
+            of this method should test whether <typeparamref name="TType"/> type could be used with
+            the defined rules.
+            </summary>
+            <typeparam name="TType">Type of the diffed object</typeparam>
+            <returns>Diff algorithm instance</returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithmRules`1">
+            <summary>
+            Type-safe version of the <see cref="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithmRules"/> interface.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Collection.KeyValue.KeyValueCollectionDiffRules`1">
+            <summary>
+            Rules for key value collection diff algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Collection.Ordered.OrderedCollectionDiffRules`1">
+            <summary>
+            Rules for ordered collection diff algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Collection.Unordered.UnorderedCollectionDiffRules`1">
+            <summary>
+            Rules for unordered collection diff algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Common.BaseClass.BaseClassDiffRules`1">
+            <summary>
+            Rules for inheritance diff algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Common.Class.ClassDiffRules`1">
+            <summary>
+            Rules for class diff algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.Common.Value.ValueDiffRules`1">
+            <summary>
+            Rules for simple value diff algorithm.
+            </summary>
+            <typeparam name="TDefinedFor">Type for which the rules are defined.</typeparam>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions">
+            <summary>
+            Extension methods for simpler diff algorithm rules definition using fluent syntax.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.KeyValueCollectionDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.Diff.Collection.KeyValue.KeyValueCollectionDiffRules{``0}})">
+            <summary>
+            Define the key value collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.KeyValueCollectionDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the key value collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.OrderedCollectionDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.Diff.Collection.Ordered.OrderedCollectionDiffRules{``0}})">
+            <summary>
+            Define the ordered collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.OrderedCollectionDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the key value collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.UnorderedCollectionDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.Diff.Collection.Unordered.UnorderedCollectionDiffRules{``0}})">
+            <summary>
+            Define the unordered collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.UnorderedCollectionDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the unordered collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.ClassDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.Diff.Common.Class.ClassDiffRules{``0}})">
+            <summary>
+            Define the class collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.ClassDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the class collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.ValueDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.Diff.Common.Value.ValueDiffRules{``0}})">
+            <summary>
+            Define the simple value collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.ValueDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the simple value collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.BaseClassDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0},System.Action{KST.SharpDiffLib.Algorithms.Diff.Common.BaseClass.BaseClassDiffRules{``0}})">
+            <summary>
+            Define the base class collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <param name="func">Definition function</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="M:KST.SharpDiffLib.Algorithms.Diff.DiffRulesExtensions.BaseClassDiffRules``1(KST.SharpDiffLib.Definition.ClassMergerDefinition{``0})">
+            <summary>
+            Define the base class collection diff algorithm rules.
+            </summary>
+            <typeparam name="TClass">Type for which the rules should be defined.</typeparam>
+            <param name="definition">Merger definition for the given type.</param>
+            <returns>Merger definition for the later use in fluent definition.</returns>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.Diff.NamespaceDoc">
+            <summary>
+            Namespace containing implementation of all basic diff algorithms. See <see cref="T:KST.SharpDiffLib.Algorithms.Diff.Base.IDiffAlgorithm`1"/>
+            for more information.
+            </summary>
+        </member>
+        <member name="T:KST.SharpDiffLib.Algorithms.NamespaceDoc">
+            <summary>
+            The <see cref="N:KST.SharpDiffLib.Algorithms"/> namespace contains all necesary merger algorithms.
+            </summary>
+        </member>
+        <member name="M:KST.SharpDiffLib.DiffResult.Base.IDiffItem.IsSame(KST.SharpDiffLib.DiffResult.Base.IDiffItem)">
+            <summary>
+            Compares diff action for equality, does not take item identificator
+            (property name, index, ...) and item type (class diff, collection diff, ...)
+            into account
+            </summary>
+            <param name="other"></param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>
