@@ -29,16 +29,11 @@ namespace TestKniznice
             Person rightPerson = resultPerson.Clone();
             Person basePeson = resultPerson.Clone();
 
-            var properties = typeof(Person).GetProperties();
-            int atCount = properties.Length;
+            int atCount = typeof(Person).GetProperties().Length;
             Stack<AtributeAction> RightAtributeActions = new Stack<AtributeAction>(atCount);
             Stack<AtributeAction> LeftAtributeActions = new Stack<AtributeAction>(atCount);
             Stack<AtributeAction> BaseAtributeActions = new Stack<AtributeAction>(atCount);
 
-            // Logs to be written to txt files
-            var rightLog = new List<string>();
-            var leftLog = new List<string>();
-            var baseLog = new List<string>();
 
             for (int i = 0; i < atCount; i++)
             {
@@ -68,35 +63,19 @@ namespace TestKniznice
                 string? leftChange = null;
                 string? sameChange = null;
 
-                var propName = properties[i].Name;
-
                 //zmeni pre L a R
                 if (actionR != actionL)
                 {
                     //jedna z akcii je KEEP
                     Console.WriteLine($"Right action");
-                    var oldRight = properties[i].GetValue(rightPerson);
                     rightChange = ExecuteAction(rightPerson, i, actionR, faker);
-                    if (rightChange != null)
-                        rightLog.Add($"{propName}: '{oldRight ?? "<null>"}' -> '{rightChange}'");
-
                     Console.WriteLine($"Left action");
-                    var oldLeft = properties[i].GetValue(leftPerson);
                     leftChange = ExecuteAction(leftPerson, i, actionL, faker);
-                    if (leftChange != null)
-                        leftLog.Add($"{propName}: '{oldLeft ?? "<null>"}' -> '{leftChange}'");
                 }
                 else
                 {
                     Console.WriteLine($"Both action");
-                    var oldRight = properties[i].GetValue(rightPerson);
-                    var oldLeft = properties[i].GetValue(leftPerson);
                     sameChange = ExecuteSameAction(rightPerson, leftPerson, i, actionR, faker);
-                    if (sameChange != null)
-                    {
-                        rightLog.Add($"{propName}: '{oldRight ?? "<null>"}' -> '{sameChange}'");
-                        leftLog.Add($"{propName}: '{oldLeft ?? "<null>"}' -> '{sameChange}'");
-                    }
                 }
 
                 // zmena pre B
@@ -117,18 +96,14 @@ namespace TestKniznice
                     else if (actionR == actionL && sameChange != null)
                         valueToApply = sameChange;
 
-                    var oldBase = properties[i].GetValue(basePeson);
-
                     if (valueToApply != null)
                     {
                         basePeson.SetAttribute(i, valueToApply);
-                        baseLog.Add($"{propName}: '{oldBase ?? "<null>"}' -> '{valueToApply}'");
                     }
                     else
                     {
-                        // fallback: if no change value captured, perform a change on base and log it
-                        var newBase = basePeson.ChangeAttribute(i, faker);
-                        baseLog.Add($"{propName}: '{oldBase ?? "<null>"}' -> '{newBase}'");
+                        // fallback: if no change value captured, perform a change on base
+                        basePeson.ChangeAttribute(i, faker);
                     }
                 }
                 else if (actionB == AtributeAction.REMOVE)
@@ -142,29 +117,10 @@ namespace TestKniznice
 
                 //TODO: base ma mat akciu, ktora je identicka s jednou z branchov
             }
-
             ExportPerson(resultPerson, "res");
             ExportPerson(rightPerson, "right");
             ExportPerson(leftPerson, "left");
             ExportPerson(basePeson, "base");
-
-            // Save change logs
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles");
-                Directory.CreateDirectory(outputDir);
-
-                File.WriteAllLines(Path.Combine(outputDir, "changes_right.txt"), rightLog);
-                File.WriteAllLines(Path.Combine(outputDir, "changes_left.txt"), leftLog);
-                File.WriteAllLines(Path.Combine(outputDir, "changes_base.txt"), baseLog);
-
-                Console.WriteLine($"Change logs saved to: {outputDir}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error writing change logs: {ex.Message}");
-            }
         }
 
         private static string? ExecuteSameAction(Person rightPerson, Person leftPerson, int i, AtributeAction action, Faker faker)
