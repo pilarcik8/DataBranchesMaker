@@ -51,6 +51,7 @@ namespace TestKniznice
 
             for (int j = 0; j < iterations; j++)
             {
+                Console.WriteLine($"Iteration {j}:");
                 ActualIteration = j;
                 // Vytvorenie vyslednej osoby
                 var faker = new Faker("en");
@@ -100,12 +101,11 @@ namespace TestKniznice
                         ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);
                     }
                 }
-                Console.WriteLine();
                 ExportPerson(resultPerson, "result");
                 ExportPerson(rightPerson, "right");
                 ExportPerson(leftPerson, "left");
                 ExportPerson(basePeson, "base");
-                Console.WriteLine("-----------------------------------------------------\n");
+                Console.WriteLine("-----------------------------------------------------");
             }
         }
 
@@ -114,6 +114,7 @@ namespace TestKniznice
             if (action == AtributeAction.KEEP)
             {
                 WriteToFile("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'");
+                WriteToFile("StepsToResult", $"Keep attribute: '{branchPerson.GetAttributeName(i)}'");
                 return;
 
             }
@@ -123,15 +124,20 @@ namespace TestKniznice
 
                 string[] parts = changeResponse.Split('|');
                 var change = parts[0];
-                var wholeMessage = parts[1];
+                var log = parts[1];
+                string step = log.Replace("Changed", "Change");
+                step = step.Replace("'{old}'", "'{newValue}'");
 
-                WriteToFile("changeLogger", wholeMessage);
+                WriteToFile("changeLogger", log);
+                WriteToFile("StepsToResult", step);
 
                 basePerson.SetAttribute(i, change);
             }
             else if (action == AtributeAction.REMOVE)
             {
+                var oldValue = branchPerson.GetAttribute(i);
                 WriteToFile("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'");
+                WriteToFile("StepsToResult", $"Add attribute: '{branchPerson.GetAttributeName(i)}' with value '{oldValue}'");
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
             }
@@ -144,6 +150,7 @@ namespace TestKniznice
                 string nameOfNewAttribute = parts[1];
 
                 WriteToFile("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'");
+                WriteToFile("StepsToResult", $"Remove attribute: '{nameOfNewAttribute}'");
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
             }
         }
@@ -220,11 +227,8 @@ namespace TestKniznice
 
             try
             {
-                // Relatívna cesta ku koreňu projektu
                 string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles");
-
-                // Vytvorenie priečinku, ak neexistuje
+                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
                 Directory.CreateDirectory(outputDir);
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
@@ -247,16 +251,16 @@ namespace TestKniznice
             try
             {
                 string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles");
+                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
                 Directory.CreateDirectory(outputDir);
                 string path = Path.Combine(outputDir, $"{fileName}{ActualIteration}.txt");
 
                 //vymazanie obsahu súboru pri prvej iterácii
                 if (!ClearedLogFiles.Contains(path) && File.Exists(path))
                 {
+                    Console.WriteLine($"TXT uložený do: {path}");
                     File.WriteAllText(path, string.Empty, Encoding.UTF8);
                     ClearedLogFiles.Add(path);
-                    Console.WriteLine($"TXT uložený do: {path}");
                 }
 
                 using (var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8))

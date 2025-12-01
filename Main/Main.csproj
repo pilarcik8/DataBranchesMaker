@@ -13,7 +13,6 @@
 
   <ItemGroup>
     <Folder Include="createdFiles\" />
-    <Folder Include="output\" />
   </ItemGroup>
 
 </Project>
