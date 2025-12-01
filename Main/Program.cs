@@ -2,7 +2,11 @@
 using Bogus.Bson;
 using Bogus.DataSets;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Xml.Linq;
 using System.Xml.Serialization;
 using static System.Collections.Specialized.BitVector32;
@@ -23,9 +27,11 @@ namespace TestKniznice
         static int MadeChanges;
         static int MadeRemovals;
         static int MadeAdditions;
+        static int ActualIteration;
+        static HashSet<string> ClearedLogFiles = new();
 
         // Nastavenia generovania
-        const int ITERATIONS = 1;
+        const int ITERATIONS = 10;
 
         const bool ALLOW_CHANGE = true;
         const bool ALLOW_REMOVE = true;
@@ -43,64 +49,63 @@ namespace TestKniznice
             MadeRemovals = 0;
             MadeAdditions = 0;
 
-            for (int j = 0; j < iterations; j++) {
-            // Vytvorenie vyslednej osoby
-            var faker = new Faker("en");
-            Person resultPerson = CreateFakePerson(faker);
-            int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
-
-            // Tvorba 2 branchov a ich predka
-            Person leftPerson = resultPerson.Clone();
-            Person rightPerson = resultPerson.Clone();
-            Person basePeson = resultPerson.Clone();
-
-            // Pre vasciu diferenciaciu r a l branchov pocas generovania
-            double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
-            double rightKeepProbability = 1.0 - leftKeepProbability;
-            Console.WriteLine($"Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}");
-
-            for (int i = 0; i < baseAtributeCount; i++)
+            for (int j = 0; j < iterations; j++)
             {
-                // Generovanie akcii pre pravy a lavy branch
-                AtributeAction actionR, actionL;
-                bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
+                ActualIteration = j;
+                // Vytvorenie vyslednej osoby
+                var faker = new Faker("en");
+                Person resultPerson = CreateFakePerson(faker);
+                int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
 
-                if (leftIsKeep)
-                {
-                    actionL = AtributeAction.KEEP;
-                    actionR = GetAtributeAction();
-                }
-                else
-                {
-                    actionL = GetAtributeAction();
-                    actionR = AtributeAction.KEEP;
+                // Tvorba 2 branchov a ich predka
+                Person leftPerson = resultPerson.Clone();
+                Person rightPerson = resultPerson.Clone();
+                Person basePeson = resultPerson.Clone();
 
-                }
+                // Pre vasciu diferenciaciu r a l branchov pocas generovania
+                double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
+                double rightKeepProbability = 1.0 - leftKeepProbability;
+                Console.WriteLine($"Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}");
 
-                if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
+                for (int i = 0; i < baseAtributeCount; i++)
                 {
-                    /*
-                    Console.WriteLine($"\n{i + 1}. R + L + B action:");
-                    // nezalezi ktory branch sa vyberie, lebo oba maju KEEP
-                    ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);*/
+                    // Generovanie akcii pre pravy a lavy branch
+                    AtributeAction actionR, actionL;
+                    bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
+
+                    if (leftIsKeep)
+                    {
+                        actionL = AtributeAction.KEEP;
+                        actionR = GetAtributeAction();
+                    }
+                    else
+                    {
+                        actionL = GetAtributeAction();
+                        actionR = AtributeAction.KEEP;
+
+                    }
+
+                    if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
+                    {
+                        continue;
+                    }
+                    else if (actionR == AtributeAction.KEEP)
+                    {
+                        WriteToFile("changeLogger", "Left and Base:");
+                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker);
+                    }
+                    else if (actionL == AtributeAction.KEEP)
+                    {
+                        WriteToFile("changeLogger", "Right and Base:");
+                        ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);
+                    }
                 }
-                else if (actionR == AtributeAction.KEEP)
-                {
-                    Console.WriteLine($"\n{i + 1}. L + B action:");
-                    ExecuteSameAction(leftPerson, basePeson, i, actionL, faker);
-                }
-                else if (actionL == AtributeAction.KEEP)
-                {
-                    Console.WriteLine($"\n{i + 1}. R + B action:");
-                    ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);
-                }
-            }
-            Console.WriteLine();
-            ExportPerson(resultPerson, "result", j);
-            ExportPerson(rightPerson, "right", j);
-            ExportPerson(leftPerson, "left", j);
-            ExportPerson(basePeson, "base", j);
-            Console.WriteLine("-----------------------------------------------------\n");
+                Console.WriteLine();
+                ExportPerson(resultPerson, "result");
+                ExportPerson(rightPerson, "right");
+                ExportPerson(leftPerson, "left");
+                ExportPerson(basePeson, "base");
+                Console.WriteLine("-----------------------------------------------------\n");
             }
         }
 
@@ -108,18 +113,25 @@ namespace TestKniznice
         {
             if (action == AtributeAction.KEEP)
             {
-                Console.WriteLine($"    Kept attribute: '{branchPerson.GetAttributeName(i)}'");
+                WriteToFile("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'");
                 return;
 
             }
             else if (action == AtributeAction.CHANGE)
             {
-                string change = branchPerson.ChangeAttribute(i, faker);
+                string changeResponse = branchPerson.ChangeAttribute(i, faker);
+
+                string[] parts = changeResponse.Split('|');
+                var change = parts[0];
+                var wholeMessage = parts[1];
+
+                WriteToFile("changeLogger", wholeMessage);
+
                 basePerson.SetAttribute(i, change);
             }
             else if (action == AtributeAction.REMOVE)
             {
-                Console.WriteLine($"    Removed attribute: '{branchPerson.GetAttributeName(i)}'");
+                WriteToFile("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'");
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
             }
@@ -130,7 +142,8 @@ namespace TestKniznice
                 string[] parts = valueAndNameOfNewAttribute.Split('|');
                 string valueOfNewAttribute = parts[0];
                 string nameOfNewAttribute = parts[1];
-                Console.WriteLine($"    Added new attribute after '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'");
+
+                WriteToFile("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'");
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
             }
         }
@@ -197,7 +210,7 @@ namespace TestKniznice
             return personFaker.Generate();
         }
 
-        private static void ExportPerson(Person person, string fileName, int iteration)
+        private static void ExportPerson(Person person, string fileName)
         {
             if (person == null)
             {
@@ -214,7 +227,7 @@ namespace TestKniznice
                 // Vytvorenie priečinku, ak neexistuje
                 Directory.CreateDirectory(outputDir);
 
-                string xmlPath = Path.Combine(outputDir, $"{fileName}{iteration}.xml");
+                string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(Person));
                 using (var writer = new StreamWriter(xmlPath))
                 {
@@ -225,6 +238,35 @@ namespace TestKniznice
             catch (Exception ex)
             {
                 Console.WriteLine($"Chyba pri exporte: {ex.Message}");
+            }
+        }
+
+        // Zápis do súboru, po riadku
+        private static void WriteToFile(string fileName, string row)
+        {
+            try
+            {
+                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
+                string outputDir = Path.Combine(projectDir, "createdFiles");
+                Directory.CreateDirectory(outputDir);
+                string path = Path.Combine(outputDir, $"{fileName}{ActualIteration}.txt");
+
+                //vymazanie obsahu súboru pri prvej iterácii
+                if (!ClearedLogFiles.Contains(path) && File.Exists(path))
+                {
+                    File.WriteAllText(path, string.Empty, Encoding.UTF8);
+                    ClearedLogFiles.Add(path);
+                    Console.WriteLine($"TXT uložený do: {path}");
+                }
+
+                using (var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8))
+                {
+                    sw.WriteLine(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Chyba pri zápise do súboru '{fileName}': {ex.Message}");
             }
         }
     }

@@ -47,7 +47,7 @@ namespace TestKniznice
         public string? StreetSuffix;
         public string? Street { get; set; } //10
         /*---------------------------------------*/
-        public string? BuildingNumber;
+        public int? BuildingNumber;
         public string? StreetNumber { get; set; }
         /*---------------------------------------*/
         public string? CityPrefix;
@@ -183,7 +183,7 @@ namespace TestKniznice
 
                 case 11:
                     value = hasPreGen ? preGeneratedValue : faker.Address.BuildingNumber();
-                    this.BuildingNumber = value;
+                    this.BuildingNumber = ParseNullableInt(value);
                     name = nameof(BuildingNumber);
                     break;
 
@@ -376,8 +376,7 @@ namespace TestKniznice
             }
             SetAttribute(i, newValue);
 
-            Console.WriteLine($"    Changed attribute: '{GetAttributeName(i)}' from '{old}' to '{newValue}'");
-            return newValue;
+            return newValue + $"|Changed attribute: '{GetAttributeName(i)}' from '{old}' to '{newValue}'";
         }
 
         public string? GetAttribute(int i)
@@ -425,7 +424,7 @@ namespace TestKniznice
                 case 3: Email = value; break;
                 case 4: Phone = value; break;
                 case 5: Gender = value; break;
-                case 6: Age = ParseNullableInt(value, "Age"); break;
+                case 6: Age = ParseNullableInt(value); break;
                 case 7: Company = value; break;
                 case 8: JobTitle = value; break;
                 case 9: CreditCardNumber = value; break;
@@ -440,18 +439,18 @@ namespace TestKniznice
                 default:
                     throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index");
             }
-
-            int? ParseNullableInt(string input, string fieldName)
-            {
-                if (input == null)
-                    return null;
-
-                if (!int.TryParse(input, out var result))
-                    throw new FormatException($"Cannot parse {fieldName} from '{input}'.");
-
-                return result;
-            }
         }
+
+        internal int? ParseNullableInt(string input)
+        {
+            if (input == null)
+                return null;
+
+            if (!int.TryParse(input, out var result))
+                throw new FormatException($"Cannot parse '{input}'.");
+            
+            return result;
+        }        
 
         public string GetAttributeName(int i)
         {
