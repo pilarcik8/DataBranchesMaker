@@ -58,6 +58,8 @@ namespace TestKniznice
             if (faker == null) throw new ArgumentNullException(nameof(faker));
 
             var old = GetAttribute(i);
+            string newValue;
+
             switch (i)
             {
                 case 0:
@@ -68,8 +70,8 @@ namespace TestKniznice
                             newTitle = faker.Name.Prefix();
                         }
                         Title = newTitle;
-                        Console.WriteLine($"    Title changed: '{old}' -> '{Title}'");
-                        return Title!;
+                        newValue = Title;
+                        break;
                     }
 
                 case 1:
@@ -80,8 +82,8 @@ namespace TestKniznice
                             newFirst = faker.Name.FirstName();
                         }
                         FirstName = newFirst;
-                        Console.WriteLine($"    FirstName changed: '{old}' -> '{FirstName}'");
-                        return FirstName!;
+                        newValue = FirstName;
+                        break;
                     }
 
                 case 2:
@@ -92,8 +94,8 @@ namespace TestKniznice
                             newLast = faker.Name.LastName();
                         }
                         LastName = newLast;
-                        Console.WriteLine($"    LastName changed: '{old}' -> '{LastName}'");
-                        return LastName!;
+                        newValue = LastName;
+                        break;
                     }
 
                 case 3:
@@ -104,8 +106,8 @@ namespace TestKniznice
                             newEmail = faker.Internet.Email();
                         }
                         Email = newEmail;
-                        Console.WriteLine($"    Email changed: '{old}' -> '{Email}'");
-                        return Email!;
+                        newValue = Email;
+                        break;
                     }
 
                 case 4:
@@ -116,8 +118,8 @@ namespace TestKniznice
                             newPhone = faker.Phone.PhoneNumber();
                         }
                         Phone = newPhone;
-                        Console.WriteLine($"    Phone changed: '{old}' -> '{Phone}'");
-                        return Phone!;
+                        newValue = Phone;
+                        break;
                     }
 
                 case 5:
@@ -128,8 +130,8 @@ namespace TestKniznice
                             newGender = faker.PickRandom(new[] { "Male", "Female", "Other" });
                         }
                         Gender = newGender;
-                        Console.WriteLine($"    Gender changed: '{old}' -> '{Gender}'");
-                        return Gender!;
+                        newValue = Gender;
+                        break;
                     }
 
                 case 6:
@@ -140,8 +142,9 @@ namespace TestKniznice
                             newAge = faker.Random.Int(18, 80);
                         }
                         Age = newAge;
-                        Console.WriteLine($"    Age changed: '{old}' -> '{Age}'");
-                        return Age.ToString()!;
+                        //change by nemal nikdy byť null
+                        newValue = Age.ToString();
+                        break;
                     }
 
                 case 7:
@@ -152,8 +155,8 @@ namespace TestKniznice
                             newCompany = faker.Company.CompanyName();
                         }
                         Company = newCompany;
-                        Console.WriteLine($"    Company changed: '{old}' -> '{Company}'");
-                        return Company!;
+                        newValue = Company;
+                        break;
                     }
 
                 case 8:
@@ -164,8 +167,8 @@ namespace TestKniznice
                             newJob = faker.Name.JobTitle();
                         }
                         JobTitle = newJob;
-                        Console.WriteLine($"    JobTitle changed: '{old}' -> '{JobTitle}'");
-                        return JobTitle!;
+                        newValue = JobTitle;
+                        break;
                     }
 
                 case 9:
@@ -176,8 +179,8 @@ namespace TestKniznice
                             newCard = faker.Finance.CreditCardNumber();
                         }
                         CreditCardNumber = newCard;
-                        Console.WriteLine($"    CreditCardNumber changed: '{old}' -> '{CreditCardNumber}'");
-                        return CreditCardNumber!;
+                        newValue = CreditCardNumber;
+                        break;
                     }
 
                 case 10:
@@ -188,8 +191,8 @@ namespace TestKniznice
                             newStreet = faker.Address.StreetName();
                         }
                         Street = newStreet;
-                        Console.WriteLine($"    Street changed: '{old}' -> '{Street}'");
-                        return Street!;
+                        newValue = Street;
+                        break;
                     }
 
                 case 11:
@@ -200,8 +203,8 @@ namespace TestKniznice
                             newStreetNumber = faker.Address.SecondaryAddress();
                         }
                         StreetNumber = newStreetNumber;
-                        Console.WriteLine($"    StreetNumber changed: '{old}' -> '{StreetNumber}'");
-                        return StreetNumber!;
+                        newValue = StreetNumber;
+                        break;
                     }
 
                 case 12:
@@ -212,8 +215,8 @@ namespace TestKniznice
                             newCity = faker.Address.City();
                         }
                         City = newCity;
-                        Console.WriteLine($"    City changed: '{old}' -> '{City}'");
-                        return City!;
+                        newValue = City;
+                        break;
                     }
 
                 case 13:
@@ -224,8 +227,8 @@ namespace TestKniznice
                             newCounty = faker.Address.County();
                         }
                         County = newCounty;
-                        Console.WriteLine($"    County changed: '{old}' -> '{County}'");
-                        return County!;
+                        newValue = County;
+                        break;
                     }
 
                 case 14:
@@ -236,8 +239,8 @@ namespace TestKniznice
                             newState = faker.Address.State();
                         }
                         State = newState;
-                        Console.WriteLine($"    State changed: '{old}' -> '{State}'");
-                        return State!;
+                        newValue = State;
+                        break;
                     }
 
                 case 15:
@@ -248,8 +251,8 @@ namespace TestKniznice
                             newZip = faker.Address.ZipCode();
                         }
                         ZipCode = newZip;
-                        Console.WriteLine($"    ZipCode changed: '{old}' -> '{ZipCode}'");
-                        return ZipCode!;
+                        newValue = ZipCode;
+                        break;
                     }
 
                 case 16:
@@ -260,13 +263,18 @@ namespace TestKniznice
                             newCountry = faker.Address.Country();
                         }
                         Country = newCountry;
-                        Console.WriteLine($"    Country changed: '{old}' -> '{Country}'");
-                        return Country!;
+                        newValue = Country;
+                        break;
                     }
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index");
             }
+
+            Console.WriteLine($"     Changed attribute: '{GetAttributeName(i)}' from '{old}' to '{newValue}'");
+
+            // Neozaj by nemalo byt null
+            return newValue;
         }
 
         public string? GetAttribute(int i)

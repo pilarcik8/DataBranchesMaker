@@ -56,18 +56,18 @@ namespace TestKniznice
 
                 if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                 {
-                    Console.WriteLine($"\nR + L + B action");
+                    Console.WriteLine($"\n{i + 1}. R + L + B action:");
                     // nezalezi ktory branch sa vyberie, lebo oba maju KEEP
                     ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);
                 }
                 else if (actionR == AtributeAction.KEEP)
                 {
-                    Console.WriteLine($"\nL + B action");
+                    Console.WriteLine($"\n{i + 1}. L + B action:");
                     ExecuteSameAction(leftPerson, basePeson, i, actionL, faker);
                 }
                 else if (actionL == AtributeAction.KEEP)
                 {
-                    Console.WriteLine($"\nR + B action");
+                    Console.WriteLine($"\n {i + 1}.R + B action:");
                     ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);
                 }
             }
