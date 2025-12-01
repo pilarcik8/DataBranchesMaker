@@ -29,109 +29,196 @@ namespace TestKniznice
             Person rightPerson = resultPerson.Clone();
             Person basePeson = resultPerson.Clone();
 
-            int atCount = typeof(Person).GetProperties().Length;
+            var properties = typeof(Person).GetProperties();
+            int atCount = properties.Length;
             Stack<AtributeAction> RightAtributeActions = new Stack<AtributeAction>(atCount);
             Stack<AtributeAction> LeftAtributeActions = new Stack<AtributeAction>(atCount);
             Stack<AtributeAction> BaseAtributeActions = new Stack<AtributeAction>(atCount);
 
+            // Logs to be written to txt files
+            var rightLog = new List<string>();
+            var leftLog = new List<string>();
+            var baseLog = new List<string>();
 
             for (int i = 0; i < atCount; i++)
             {
+                // Generovanie akcii pre pravy a lavy branch
                 AtributeAction actionR, actionL;
                 if (i % 2 == 0)
                 {
                     actionR = GetAtributeAction();
                     actionL = GetAtributeActionWitourConfilct(actionR);
                 }
-                else {                  
-                    
-                     actionL = GetAtributeAction();
-                     actionR = GetAtributeActionWitourConfilct(actionL);
+                else
+                {
+
+                    actionL = GetAtributeAction();
+                    actionR = GetAtributeActionWitourConfilct(actionL);
                 }
+
+                //ulozenie akcii do stacku
                 AtributeAction actionB = GetBaseWinningAcion(actionR, actionL);
 
                 RightAtributeActions.Push(actionR);
                 LeftAtributeActions.Push(actionL);
                 BaseAtributeActions.Push(actionB);
 
+                //prebehnutie zmien v triedach
+                string? rightChange = null;
+                string? leftChange = null;
+                string? sameChange = null;
+
+                var propName = properties[i].Name;
+
+                //zmeni pre L a R
                 if (actionR != actionL)
                 {
                     //jedna z akcii je KEEP
                     Console.WriteLine($"Right action");
-                    ExecuteAction(rightPerson, i, actionR, faker);
+                    var oldRight = properties[i].GetValue(rightPerson);
+                    rightChange = ExecuteAction(rightPerson, i, actionR, faker);
+                    if (rightChange != null)
+                        rightLog.Add($"{propName}: '{oldRight ?? "<null>"}' -> '{rightChange}'");
+
                     Console.WriteLine($"Left action");
-                    ExecuteAction(leftPerson, i, actionL, faker);
+                    var oldLeft = properties[i].GetValue(leftPerson);
+                    leftChange = ExecuteAction(leftPerson, i, actionL, faker);
+                    if (leftChange != null)
+                        leftLog.Add($"{propName}: '{oldLeft ?? "<null>"}' -> '{leftChange}'");
                 }
-                else 
+                else
                 {
                     Console.WriteLine($"Both action");
-                    ExecuteSameAction(rightPerson, leftPerson, i, actionR, faker);
+                    var oldRight = properties[i].GetValue(rightPerson);
+                    var oldLeft = properties[i].GetValue(leftPerson);
+                    sameChange = ExecuteSameAction(rightPerson, leftPerson, i, actionR, faker);
+                    if (sameChange != null)
+                    {
+                        rightLog.Add($"{propName}: '{oldRight ?? "<null>"}' -> '{sameChange}'");
+                        leftLog.Add($"{propName}: '{oldLeft ?? "<null>"}' -> '{sameChange}'");
+                    }
                 }
+
+                // zmena pre B
                 Console.WriteLine($"Base action");
-                ExecuteAction(basePeson, i, actionB, faker);
+                if (actionB == AtributeAction.KEEP)
+                {
+                    // nothing to do
+                }
+                else if (actionB == AtributeAction.CHANGE)
+                {
+                    // Determine which branch's change to apply to base
+                    string? valueToApply = null;
+
+                    if (actionR == actionB && rightChange != null)
+                        valueToApply = rightChange;
+                    else if (actionL == actionB && leftChange != null)
+                        valueToApply = leftChange;
+                    else if (actionR == actionL && sameChange != null)
+                        valueToApply = sameChange;
+
+                    var oldBase = properties[i].GetValue(basePeson);
+
+                    if (valueToApply != null)
+                    {
+                        basePeson.SetAttribute(i, valueToApply);
+                        baseLog.Add($"{propName}: '{oldBase ?? "<null>"}' -> '{valueToApply}'");
+                    }
+                    else
+                    {
+                        // fallback: if no change value captured, perform a change on base and log it
+                        var newBase = basePeson.ChangeAttribute(i, faker);
+                        baseLog.Add($"{propName}: '{oldBase ?? "<null>"}' -> '{newBase}'");
+                    }
+                }
+                else if (actionB == AtributeAction.REMOVE)
+                {
+                    // TODO: implement remove behavior
+                }
+                else if (actionB == AtributeAction.ADD)
+                {
+                    // TODO: implement add behavior
+                }
+
                 //TODO: base ma mat akciu, ktora je identicka s jednou z branchov
             }
 
-            /*
-            Console.WriteLine("\nbase\n");
-            Console.WriteLine(basePeson.ToString());
-            Console.WriteLine("\nleft\n");
-            Console.WriteLine(leftPerson.ToString());
-            Console.WriteLine("\nright\n");
-            Console.WriteLine(rightPerson.ToString());
-            Console.WriteLine("\nresult\n");
-            Console.WriteLine(resultPerson.ToString());
+            ExportPerson(resultPerson, "res");
+            ExportPerson(rightPerson, "right");
+            ExportPerson(leftPerson, "left");
+            ExportPerson(basePeson, "base");
 
-            //Vytvorenie xml
-            //ExportPerson(resultPerson, "res");
-            //ExportPerson(rightPerson, "right");
-            //ExportPerson(leftPerson, "left");
-            //ExportPerson(basePeson, "base");
-            */
+            // Save change logs
+            try
+            {
+                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
+                string outputDir = Path.Combine(projectDir, "createdFiles");
+                Directory.CreateDirectory(outputDir);
 
+                File.WriteAllLines(Path.Combine(outputDir, "changes_right.txt"), rightLog);
+                File.WriteAllLines(Path.Combine(outputDir, "changes_left.txt"), leftLog);
+                File.WriteAllLines(Path.Combine(outputDir, "changes_base.txt"), baseLog);
+
+                Console.WriteLine($"Change logs saved to: {outputDir}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error writing change logs: {ex.Message}");
+            }
         }
 
-        private static void ExecuteSameAction(Person rightPerson, Person leftPerson, int i, AtributeAction action, Faker faker)
+        private static string? ExecuteSameAction(Person rightPerson, Person leftPerson, int i, AtributeAction action, Faker faker)
         {
             if (action == AtributeAction.KEEP)
-                return;
+                return null;
 
             else if (action == AtributeAction.CHANGE)
-            {   
+            {
+                // change right, copy to left and return the new value so base can reuse it
                 string change = rightPerson.ChangeAttribute(i, faker);
                 leftPerson.SetAttribute(i, change);
+                return change;
             }
 
             else if (action == AtributeAction.REMOVE)
             {
                 // potrebujem odstranit dany atribut z triedy (aspon nastavit aby sa neulozil do xml ked ho expornem)
+                return null;
             }
 
             else if (action == AtributeAction.ADD)
             {
                 // potrebujem pridat novy atribut do triedy pred tento atribut (aspon nastavit aby sa ulozil do xml ked ho expornem)
+                return null;
             }
+
+            return null;
         }
 
-        private static void ExecuteAction(Person person, int i, AtributeAction action, Faker faker)
+        private static string? ExecuteAction(Person person, int i, AtributeAction action, Faker faker)
         {
             if (action == AtributeAction.KEEP)
-                return;
+                return null;
 
             else if (action == AtributeAction.CHANGE)
             {
-                person.ChangeAttribute(i, faker);
+                // return new value so caller can propagate it to base when needed
+                return person.ChangeAttribute(i, faker);
             }
 
-            else if(action == AtributeAction.REMOVE)
+            else if (action == AtributeAction.REMOVE)
             {
                 // potrebujem odstranit dany atribut z triedy (aspon nastavit aby sa neulozil do xml ked ho expornem)
+                return null;
             }
 
-            else if(action == AtributeAction.ADD)
+            else if (action == AtributeAction.ADD)
             {
                 // potrebujem pridat novy atribut do triedy pred tento atribut (aspon nastavit aby sa ulozil do xml ked ho expornem)
+                return null;
             }
+
+            return null;
         }
 
         // Mozu byt bud identicke alebo aspon jeden z nich musi byt KEEP
@@ -176,7 +263,7 @@ namespace TestKniznice
                 .RuleFor(p => p.County, f => f.Address.County())
                 .RuleFor(p => p.State, f => f.Address.State())
                 .RuleFor(p => p.ZipCode, f => f.Address.ZipCode())
-                .RuleFor(p => p.Country, f => f.Address.Country());                
+                .RuleFor(p => p.Country, f => f.Address.Country());
 
             return personFaker.Generate();
         }
