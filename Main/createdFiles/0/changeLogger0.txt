@@ -1,0 +1,51 @@
+﻿Left, Right and Base:
+Kept attribute: 'Title'
+
+Right and Base:
+Added new attribute before attribute 'FirstName': named 'FavouriteColor' with value 'salmon'
+
+Left and Base:
+Added new attribute before attribute 'LastName': named 'BitcoinAddress' with value '1TtcnYir4NdyLheuj1BUgqs2x7fkJb'
+
+Right and Base:
+Added new attribute before attribute 'Email': named 'EmailUserName' with value 'Katelyn.DAmore'
+
+Right and Base:
+Removed attribute: 'Phone'
+
+Left and Base:
+Removed attribute: 'Gender'
+
+Right and Base:
+Removed attribute: 'Age'
+
+Left, Right and Base:
+Kept attribute: 'Company'
+
+Right and Base:
+Added new attribute before attribute 'JobTitle': named 'JobDescriptor' with value 'The JSON system is down, bypass the haptic system so we can bypass the JSON system!'
+
+Left and Base:
+Added new attribute before attribute 'CreditCardNumber': named 'CreditAccount' with value '46726477'
+
+Left and Base:
+Changed attribute: 'Street' from 'Wyman Rest' to 'Sipes Rue'
+
+Right and Base:
+Removed attribute: 'StreetNumber'
+
+Left and Base:
+Removed attribute: 'City'
+
+Right and Base:
+Changed attribute: 'County' from 'Avon' to 'Buckinghamshire'
+
+Left and Base:
+Removed attribute: 'State'
+
+Right and Base:
+Removed attribute: 'ZipCode'
+
+Left, Right and Base:
+Kept attribute: 'Country'
+

@@ -31,7 +31,7 @@ namespace TestKniznice
         static HashSet<string> ClearedLogFiles = new();
 
         // Nastavenia generovania
-        const int ITERATIONS = 10;
+        const int ITERATIONS = 1;
 
         const bool ALLOW_CHANGE = true;
         const bool ALLOW_REMOVE = true;
@@ -88,6 +88,8 @@ namespace TestKniznice
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
+                        WriteToFile("changeLogger", "Left, Right and Base:");
+                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
@@ -115,7 +117,6 @@ namespace TestKniznice
             {
                 WriteToFile("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'");
                 WriteToFile("StepsToResult", $"Keep attribute: '{branchPerson.GetAttributeName(i)}'");
-                return;
 
             }
             else if (action == AtributeAction.CHANGE)
@@ -153,6 +154,7 @@ namespace TestKniznice
                 WriteToFile("StepsToResult", $"Remove attribute: '{nameOfNewAttribute}'");
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
             }
+            WriteToFile("changeLogger", $"");
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
