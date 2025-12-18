@@ -11,8 +11,4 @@
     <PackageReference Include="Bogus" Version="35.6.5" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="createdFiles\" />
-  </ItemGroup>
-
 </Project>

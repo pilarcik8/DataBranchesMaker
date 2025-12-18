@@ -17,11 +17,15 @@ namespace TestKniznice
         ADD
     }
 
+
     public static class Program
     {
         const int MAX_RESULT_SET_SIZE = 34;
         const int MIN_RESULT_SET_SIZE = 17;
         const int ITERATIONS = 1;
+
+        static int ActualIteration;
+        static HashSet<string> ClearedLogFiles = new HashSet<string>();
 
         public static void Main()
         {
@@ -31,7 +35,7 @@ namespace TestKniznice
 
             for (int i = 0; i < ITERATIONS; i++)
             {
-
+                ActualIteration = i;
                 var resultSet = new HashSet<string>(StringComparer.Ordinal);
 
                 while (resultSet.Count < targetCount)
@@ -67,27 +71,34 @@ namespace TestKniznice
 
                     if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
                     {
-                        Console.WriteLine("L, R, B:");
-                        continue;
+                        var massage = "L, R, B:";
+                        WriteToFile("changeLog", massage);
+                        Console.WriteLine(massage);
+                        ExecuteAction(rightSet, baseSet, item, rightAct, faker);
                     }
                     else if (leftAct == SetAction.KEEP)
                     {
-                        Console.WriteLine("R, B:");
+                        var massage = "R, B:";
+                        WriteToFile("changeLog", massage);
+                        Console.WriteLine(massage);
                         ExecuteAction(rightSet, baseSet, item, rightAct, faker);
                     }
                     else if (rightAct == SetAction.KEEP)
                     {
-                        Console.WriteLine("L, B:");
+                        var massage = "L, B:";
+                        WriteToFile("changeLog", massage);
+                        Console.WriteLine(massage);
                         ExecuteAction(leftSet, baseSet, item, leftAct, faker);
                     }
                 }
 
                 // build iteration directory and export files there
                 string iterDir = Path.Combine("createdFiles", (i).ToString());
-                ExportSet(leftSet, "left", i);
-                ExportSet(rightSet, "right", i);
-                ExportSet(baseSet, "base", i);
-                ExportSet(resultSet, "result", i);
+                ExportSet(leftSet, "left");
+                ExportSet(rightSet, "right");
+                ExportSet(baseSet, "base");
+                ExportSet(resultSet, "result");
+                Console.WriteLine("--------------------------------------------------");
 
             }
 
@@ -97,12 +108,16 @@ namespace TestKniznice
         {
             if (action == SetAction.KEEP)
             {
-                Console.WriteLine($"Keeping item: {item}");
-                return;
+                var massage = $"Keeping item: {item}";
+                WriteToFile("changeLog", massage);
+                Console.WriteLine(massage);
             }
             else if (action == SetAction.REMOVE)
             {
-                Console.WriteLine($"Removing item: {item}");
+                var massage = $"Removing item: {item}";
+                WriteToFile("changeLog", massage);
+                Console.WriteLine(massage);
+
                 baseSet.Remove(item);
                 branchSet.Remove(item);
             }
@@ -113,6 +128,9 @@ namespace TestKniznice
                 {
                     newItem = faker.Random.Word();
                 }
+                string message = $"Adding item: {newItem}";
+                Console.WriteLine(message);
+                WriteToFile("changeLog", message);
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
             }
@@ -132,17 +150,17 @@ namespace TestKniznice
             }
         }
 
-        private static void ExportSet(HashSet<string> set, string fileName, int iteration)
+        private static void ExportSet(HashSet<string> set, string fileName)
         {
             if (set == null) throw new ArgumentNullException(nameof(set));
 
             try
             {
                 string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", iteration.ToString());
+                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
                 Directory.CreateDirectory(outputDir);
 
-                string xmlPath = Path.Combine(outputDir, $"{fileName}{iteration}.xml");
+                string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
                 XmlSerializer xmlSerializer = new XmlSerializer(typeof(HashSet<string>));
                 using (var writer = new StreamWriter(xmlPath))
                 {
@@ -153,6 +171,34 @@ namespace TestKniznice
             catch (Exception ex)
             {
                 Console.WriteLine($"Chyba pri exporte: {ex.Message}");
+            }
+        }
+
+        private static void WriteToFile(string fileName, string row)
+        {
+            try
+            {
+                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
+                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
+                Directory.CreateDirectory(outputDir);
+                string path = Path.Combine(outputDir, $"{fileName}{ActualIteration}.txt");
+
+                //vymazanie obsahu súboru pri prvej iterácii
+                if (!ClearedLogFiles.Contains(path) && File.Exists(path))
+                {
+                    Console.WriteLine($"TXT uložený do: {path}");
+                    File.WriteAllText(path, string.Empty, Encoding.UTF8);
+                    ClearedLogFiles.Add(path);
+                }
+
+                using (var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8))
+                {
+                    sw.WriteLine(row);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Chyba pri zápise do súboru '{fileName}': {ex.Message}");
             }
         }
     }
