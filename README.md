@@ -1,0 +1,1 @@
+Generates test data for 3-way merge testing of XML objects/collections using the Bogus library. Can create a Person class, a set of strings, or a list of strings. Produces a base version, left and right branches, and an expected “merged” result that your merge implementation should output.
