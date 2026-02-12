@@ -11,25 +11,50 @@ namespace TestKniznice
         ADD
     }
 
-
     public static class Program
     {
-        const int MAX_RESULT_SET_SIZE = 34;
-        const int MIN_RESULT_SET_SIZE = 17;
-        const int ITERATIONS = 1;
-
+        static int MadeRemovals;
+        static int MadeAdditions;
         static int ActualIteration;
         static HashSet<string> ClearedLogFiles = new HashSet<string>();
 
+        //Konfigurácia generovania dát
+        const int MAX_RESULT_SET_SIZE = 10;
+        const int MIN_RESULT_SET_SIZE = 10;
+
+        const int ITERATIONS = 1;
+
+        const bool ALLOW_REMOVE = true;
+        const bool ALLOW_ADD = true;
+
+        const int MAX_ALLOWED_REMOVALS = int.MaxValue;
+        const int MAX_ALLOWED_ADDITIONS = int.MaxValue;
+
         public static void Main()
         {
+            // Validácia konfigurácie
+            if (MAX_RESULT_SET_SIZE < MIN_RESULT_SET_SIZE || 
+                MIN_RESULT_SET_SIZE <= 0 ||
+                MAX_RESULT_SET_SIZE <= 0)
+            {
+                Console.Error.WriteLine("Set s takymi velkostami nie je mozne vytvoriť");
+                return;
+            }
+
+            if (!ALLOW_ADD && !ALLOW_REMOVE)
+            {
+                Console.WriteLine("Nie je možné provést žádné změny, oba ALLOW_ADD a ALLOW_REMOVE jsou nastaveny na false.");
+                // return; // Po validacii KEEP odkomentuj!
+            }
             var faker = new Faker();
+            MadeRemovals = 0;
+            MadeAdditions = 0;
 
             int targetCount = faker.Random.Int(MIN_RESULT_SET_SIZE, MAX_RESULT_SET_SIZE);
 
-            for (int i = 0; i < ITERATIONS; i++)
+            // Vytvorenie základneho (vysledkovy) setu
+            for (ActualIteration = 0; ActualIteration < ITERATIONS; ActualIteration++) // pocet skupin vetiev
             {
-                ActualIteration = i;
                 var resultSet = new HashSet<string>(StringComparer.Ordinal);
 
                 while (resultSet.Count < targetCount)
@@ -55,11 +80,11 @@ namespace TestKniznice
                     if (Random.Shared.NextDouble() > leftKeepProbability)
                     {
                         leftAct = SetAction.KEEP;
-                        rightAct = GetAction();
+                        rightAct = GetElementAction();
                     }
                     else
                     {
-                        leftAct = GetAction();
+                        leftAct = GetElementAction();
                         rightAct = SetAction.KEEP;
                     }
 
@@ -67,27 +92,32 @@ namespace TestKniznice
                     {
                         var massage = "L, R, B:";
                         WriteToFile("changeLog", massage);
-                        Console.WriteLine(massage);
+                        //Console.WriteLine(massage);
                         ExecuteAction(rightSet, baseSet, item, rightAct, faker);
                     }
                     else if (leftAct == SetAction.KEEP)
                     {
                         var massage = "R, B:";
                         WriteToFile("changeLog", massage);
-                        Console.WriteLine(massage);
+                        //Console.WriteLine(massage);
                         ExecuteAction(rightSet, baseSet, item, rightAct, faker);
                     }
                     else if (rightAct == SetAction.KEEP)
                     {
                         var massage = "L, B:";
                         WriteToFile("changeLog", massage);
-                        Console.WriteLine(massage);
+                        //Console.WriteLine(massage);
                         ExecuteAction(leftSet, baseSet, item, leftAct, faker);
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine("Setmaker - nenašla sa vetva s KEEP akciou\nRA: " + rightAct.ToString() + "LA: " + leftAct.ToString());
+                        return;
                     }
                 }
 
-                // build iteration directory and export files there
-                string iterDir = Path.Combine("createdFiles", (i).ToString());
+                // Vytvor adresár pre aktuálnu iteráciu a exportuj seti
+                string iterDir = Path.Combine("createdFiles", (ActualIteration).ToString());
                 ExportSet(leftSet, "left");
                 ExportSet(rightSet, "right");
                 ExportSet(baseSet, "base");
@@ -104,13 +134,13 @@ namespace TestKniznice
             {
                 var massage = $"Keeping item: {item}";
                 WriteToFile("changeLog", massage);
-                Console.WriteLine(massage);
+                //Console.WriteLine(massage);
             }
             else if (action == SetAction.REMOVE)
             {
                 var massage = $"Removing item: {item}";
                 WriteToFile("changeLog", massage);
-                Console.WriteLine(massage);
+                //Console.WriteLine(massage);
 
                 baseSet.Remove(item);
                 branchSet.Remove(item);
@@ -123,25 +153,27 @@ namespace TestKniznice
                     newItem = faker.Random.Word();
                 }
                 string message = $"Adding item: {newItem}";
-                Console.WriteLine(message);
+                //Console.WriteLine(message);
                 WriteToFile("changeLog", message);
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
             }
         }
 
-        private static SetAction GetAction()
+        public static SetAction GetElementAction()
         {
-            int randomValue = new Random().Next(3);
-            switch (randomValue)
-            {
-                case 0:
-                    return SetAction.KEEP;
-                case 1:
-                    return SetAction.REMOVE;
-                default:
-                    return SetAction.ADD;
+            List<SetAction> allowed = new List<SetAction>() { SetAction.KEEP };
+            if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals) {
+                allowed.Add(SetAction.REMOVE); 
             }
+            if (ALLOW_ADD && MAX_ALLOWED_ADDITIONS > MadeAdditions)
+            {
+                allowed.Add(SetAction.ADD);
+            }
+
+            int index = new Random().Next(allowed.Count);
+
+            return allowed.ElementAt(index);
         }
 
         private static void ExportSet(HashSet<string> set, string fileName)

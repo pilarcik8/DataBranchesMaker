@@ -1,6 +1,7 @@
 ﻿using Bogus;
 using System.Text;
 using System.Xml.Serialization;
+using static System.Collections.Specialized.BitVector32;
 
 namespace TestKniznice
 {
@@ -15,16 +16,46 @@ namespace TestKniznice
 
     public static class Program
     {
-        const int MAX_RESULT_LIST_SIZE = 34;
-        const int MIN_RESULT_LIST_SIZE = 17;
-        const int ITERATIONS = 5;
-
         static int ActualIteration;
         static HashSet<string> ClearedLogFiles = new HashSet<string>();
 
+        static int MadeRemovals;
+        static int MadeAdditions;
+        static int MadeShifts;
+
+        // Konfigurácia generovania dát
+        const int MAX_RESULT_LIST_SIZE = 5;
+        const int MIN_RESULT_LIST_SIZE = 5;
+        const int ITERATIONS = 1;
+
+        const bool ALLOW_REMOVE = true;
+        const bool ALLOW_ADD = true;
+        const bool ALLOW_SHIFT = true;
+
+
+        const int MAX_ALLOWED_REMOVALS = int.MaxValue;
+        const int MAX_ALLOWED_ADDITIONS = int.MaxValue;
+        const int MAX_ALLOWED_SHIFTS = int.MaxValue;
+
         public static void Main()
         {
+            if (MAX_RESULT_LIST_SIZE < MIN_RESULT_LIST_SIZE ||
+                MIN_RESULT_LIST_SIZE <= 0 ||
+                MAX_RESULT_LIST_SIZE <= 0)
+            {
+                Console.Error.WriteLine("Set s takymi velkostami nie je mozne vytvoriť");
+                return;
+            }
+
+            if (!ALLOW_ADD && !ALLOW_REMOVE && !ALLOW_SHIFT)
+            {
+                Console.WriteLine("Nie je možné provést žádné změny, oba ALLOW_ADD a ALLOW_REMOVE jsou nastaveny na false.");
+                // return; // Po validacii KEEP odkomentuj!
+            }
             var faker = new Faker();
+            MadeAdditions= 0; 
+            MadeRemovals = 0; 
+            MadeShifts = 0;
 
             int targetCount = faker.Random.Int(MIN_RESULT_LIST_SIZE, MAX_RESULT_LIST_SIZE);
 
@@ -192,20 +223,25 @@ namespace TestKniznice
 
         }
 
-        private static ListAction GetAction()
+        public static ListAction GetAction()
         {
-            int randomValue = new Random().Next(4);
-            switch (randomValue)
+            List<ListAction> allowed = new List<ListAction>() { ListAction.KEEP };
+            if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
             {
-                case 0:
-                    return ListAction.KEEP;
-                case 1:
-                    return ListAction.REMOVE;
-                case 2:
-                    return ListAction.ADD;
-                default:
-                    return ListAction.SHIFT;
+                allowed.Add(ListAction.REMOVE);
             }
+            if (ALLOW_ADD && MAX_ALLOWED_ADDITIONS > MadeAdditions)
+            {
+                allowed.Add(ListAction.ADD);
+            }
+            if (ALLOW_SHIFT && MAX_ALLOWED_SHIFTS > MadeShifts)
+            {
+                allowed.Add(ListAction.SHIFT);
+            }
+
+            int index = new Random().Next(allowed.Count);
+
+            return allowed.ElementAt(index);
         }
 
         private static void ExportList(List<string> list, string fileName)

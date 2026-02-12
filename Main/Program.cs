@@ -21,7 +21,7 @@ namespace TestKniznice
         static HashSet<string> ClearedLogFiles = new();
 
         // Nastavenia generovania
-        const int ITERATIONS = 5;
+        const int ITERATIONS = 1;
 
         const bool ALLOW_CHANGE = true;
         const bool ALLOW_REMOVE = true;
@@ -33,6 +33,12 @@ namespace TestKniznice
 
         public static void Main()
         {
+            if (!ALLOW_ADD && !ALLOW_REMOVE && !ALLOW_CHANGE)
+            {
+                Console.WriteLine("Nie je možné provést žádné změny, oba ALLOW_ADD a ALLOW_REMOVE jsou nastaveny na false.");
+                // return; // Po validacii KEEP odkomentuj!
+            }
+
             // Generovanie testovacich dat
             var iterations = ITERATIONS;
             MadeChanges = 0;
@@ -183,6 +189,26 @@ namespace TestKniznice
                     return GetAtributeAction();
             }
             return GetAtributeAction();
+        }
+
+        public static AtributeAction GetElementAction()
+        {
+            List<AtributeAction> allowed = new List<AtributeAction>() { AtributeAction.KEEP };
+            if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
+            {
+                allowed.Add(AtributeAction.REMOVE);
+            }
+            if (ALLOW_ADD && MAX_ALLOWED_ADDITIONS > MadeAdditions)
+            {
+                allowed.Add(AtributeAction.ADD);
+            }
+            if (ALLOW_CHANGE && MAX_ALLOWED_CHANGES > MadeChanges) { 
+                allowed.Add(AtributeAction.CHANGE); 
+            }
+
+            int index = new Random().Next(allowed.Count);
+
+            return allowed.ElementAt(index);
         }
 
         private static Person CreateFakePerson(Faker faker)
