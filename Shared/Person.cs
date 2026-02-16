@@ -1,6 +1,6 @@
 ﻿using Bogus;
 
-namespace PersonMaker
+namespace Shared
 {
     // Cely Person.cs zalezi na tom aby sa nemenili tieto atributy a ich indexy
     // Kazdy druhy atribut je aby sa pocas runntimu dal "pridat" novy atribut (nastaveny na null == neexistuje pre xml)
@@ -93,7 +93,7 @@ namespace PersonMaker
             CountryCode = null;
         }
 
-        public string AddAttribute(int i, Faker faker, string preGeneratedValue = "")
+        public string[] AddAttribute(int i, Faker faker, string preGeneratedValue = "")
         {
             string value = "";
             string name = "";
@@ -203,7 +203,7 @@ namespace PersonMaker
                     throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index");
             }
 
-            var valueAndName = $"{value}|{name}";
+            string[] valueAndName = [value, name];
             return valueAndName;
         }
 
@@ -376,13 +376,13 @@ namespace PersonMaker
             };
         }
 
-        internal void RemoveAtribute(int i)
+        public void RemoveAtribute(int i)
         {
             SetAttribute(i, null);
         }
 
 
-        internal void SetAttribute(int i, string? value)
+        public void SetAttribute(int i, string? value)
         {
             var old = GetAttribute(i);
             var name = GetAttributeName(i);

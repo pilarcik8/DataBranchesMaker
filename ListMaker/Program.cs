@@ -1,6 +1,5 @@
 ﻿using Bogus;
-using System.Text;
-using System.Xml.Serialization;
+using Shared;
 
 namespace ListMaker
 {
@@ -15,9 +14,6 @@ namespace ListMaker
 
     public static class Program
     {
-        static int ActualIteration;
-        static readonly HashSet<string> ClearedLogFiles = [];
-
         static int MadeRemovals;
         static int MadeAdditions;
         static int MadeShifts;
@@ -25,7 +21,7 @@ namespace ListMaker
         // Konfigurácia generovania dát
         const int MAX_RESULT_LIST_SIZE = 5;
         const int MIN_RESULT_LIST_SIZE = 5;
-        const int ITERATIONS = 1;
+        const int ITERATIONS = 5;
 
         const bool ALLOW_REMOVE = true;
         const bool ALLOW_ADD = true;
@@ -58,9 +54,8 @@ namespace ListMaker
 
             int targetCount = faker.Random.Int(MIN_RESULT_LIST_SIZE, MAX_RESULT_LIST_SIZE);
 
-            for (int i = 0; i < ITERATIONS; i++)
+            for (int iteration = 0; iteration < ITERATIONS; iteration++)
             {
-                ActualIteration = i;
                 var resultList = new List<string>();
 
                 while (resultList.Count < targetCount)
@@ -83,6 +78,7 @@ namespace ListMaker
                 foreach (string item in resultList)
                 {
                     ListAction leftAct, rightAct;
+                    string massage;
                     if (Random.Shared.NextDouble() > leftKeepProbability)
                     {
                         leftAct = ListAction.KEEP;
@@ -96,50 +92,48 @@ namespace ListMaker
 
                     if (leftAct == ListAction.KEEP && rightAct == ListAction.KEEP)
                     {
-                        var massage = "L, R, B:";
-                        WriteToFile("changeLog", massage);
-                        //Console.WriteLine(massage);
-                        ExecuteAction(rightList, baseList, item, rightAct, faker);
+                        massage = "L, R, B:";
+                        ExecuteAction(rightList, baseList, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == ListAction.KEEP)
                     {
-                        var massage = "R, B:";
-                        WriteToFile("changeLog", massage);
-                        //Console.WriteLine(massage);
-                        ExecuteAction(rightList, baseList, item, rightAct, faker);
+                        massage = "R, B:";
+                        ExecuteAction(rightList, baseList, item, rightAct, faker, iteration);
                     }
                     else if (rightAct == ListAction.KEEP)
                     {
-                        var massage = "L, B:";
-                        WriteToFile("changeLog", massage);
-                        //Console.WriteLine(massage);
-                        ExecuteAction(leftList, baseList, item, leftAct, faker);
+                        massage = "L, B:";
+                        ExecuteAction(leftList, baseList, item, leftAct, faker, iteration);
                     }
+                    else
+                    {
+                        Console.Error.WriteLine("Nezanama akcia");
+                        return;
+                    }
+                    FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
                 }
 
-                ExportList(leftList, "left");
-                ExportList(rightList, "right");
-                ExportList(baseList, "base");
-                ExportList(resultList, "result");
+                FileOutput.Export(leftList, "left", iteration);
+                FileOutput.Export(rightList, "right", iteration);
+                FileOutput.Export(baseList, "base", iteration);
+                FileOutput.Export(resultList, "result", iteration);
                 Console.WriteLine("--------------------------------------------------");
 
             }
 
         }
 
-        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker)
+        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)
         {
             if (action == ListAction.KEEP)
             {
                 var massage = $"Keeping item: {item}";
-                WriteToFile("changeLog", massage);
-                //Console.WriteLine(massage);
+                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
             }
             else if (action == ListAction.REMOVE)
             {
                 var massage = $"Removing item: {item}";
-                WriteToFile("changeLog", massage);
-                //Console.WriteLine(massage);
+                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -172,7 +166,7 @@ namespace ListMaker
 
                 string message = $"Adding item: {newItem} at index {currentIndex}";
                 //Console.WriteLine(message);
-                WriteToFile("changeLog", message);
+                FileOutput.WriteTxtSingleRow("changeLog", message, iteration);
             }
             else if (action == ListAction.SHIFT)
             {
@@ -181,7 +175,7 @@ namespace ListMaker
                 if (count <= 1)
                 {
                     var msg = $"Cannot shift item '{item}' in a list with <= 1 element.";
-                    WriteToFile("changeLog", msg);
+                    FileOutput.WriteTxtSingleRow("changeLog", msg, iteration);
                     //Console.WriteLine(msg);
                     return;
                 }
@@ -215,8 +209,7 @@ namespace ListMaker
                 }
 
                 var message = $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}";
-                WriteToFile("changeLog", message);
-                //Console.WriteLine(message);
+                FileOutput.WriteTxtSingleRow("changeLog", message, iteration);
             }
 
         }
@@ -240,55 +233,6 @@ namespace ListMaker
             int index = new Random().Next(allowed.Count);
 
             return allowed.ElementAt(index);
-        }
-
-        private static void ExportList(List<string> list, string fileName)
-        {
-            ArgumentNullException.ThrowIfNull(list);
-
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
-                Directory.CreateDirectory(outputDir);
-
-                string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
-                XmlSerializer xmlSerializer = new(typeof(List<string>));
-                using (var writer = new StreamWriter(xmlPath))
-                {
-                    xmlSerializer.Serialize(writer, list);
-                }
-                Console.WriteLine($"XML uložený do: {xmlPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri exporte: {ex.Message}");
-            }
-        }
-
-        private static void WriteToFile(string fileName, string row)
-        {
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
-                Directory.CreateDirectory(outputDir);
-                string path = Path.Combine(outputDir, $"{fileName}{ActualIteration}.txt");
-
-                if (!ClearedLogFiles.Contains(path) && File.Exists(path))
-                {
-                    Console.WriteLine($"TXT uložený do: {path}");
-                    File.WriteAllText(path, string.Empty, Encoding.UTF8);
-                    ClearedLogFiles.Add(path);
-                }
-
-                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
-                sw.WriteLine(row);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri zápise do súboru '{fileName}': {ex.Message}");
-            }
         }
     }
 }

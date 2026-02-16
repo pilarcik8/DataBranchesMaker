@@ -1,6 +1,7 @@
 ﻿using Bogus;
-using System.Text;
-using System.Xml.Serialization;
+using Shared;
+
+using Person = Shared.Person;
 
 namespace PersonMaker
 {
@@ -17,8 +18,6 @@ namespace PersonMaker
         static int MadeChanges;
         static int MadeRemovals;
         static int MadeAdditions;
-        static int ActualIteration;
-        static readonly HashSet<string> ClearedLogFiles = [];
 
         // Nastavenia generovania
         const int ITERATIONS = 5;
@@ -40,15 +39,13 @@ namespace PersonMaker
             }
 
             // Generovanie testovacich dat
-            var iterations = ITERATIONS;
             MadeChanges = 0;
             MadeRemovals = 0;
             MadeAdditions = 0;
 
-            for (int j = 0; j < iterations; j++)
+            for (int iteration = 0; iteration < ITERATIONS; iteration++)
             {
-                Console.WriteLine($"Iteration {j}:");
-                ActualIteration = j;
+                Console.WriteLine($"Iteration {iteration}:");
                 // Vytvorenie vyslednej osoby
                 var faker = new Faker("en");
                 Person resultPerson = CreateFakePerson();
@@ -84,35 +81,35 @@ namespace PersonMaker
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
-                        WriteToFile("changeLogger", "Left, Right and Base:");
-                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker);
+                        FileOutput.WriteTxtSingleRow("changeLogger", "Left, Right and Base:", iteration);
+                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker, iteration);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
-                        WriteToFile("changeLogger", "Left and Base:");
-                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker);
+                        FileOutput.WriteTxtSingleRow("changeLogger", "Left and Base:", iteration);
+                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker, iteration);
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
-                        WriteToFile("changeLogger", "Right and Base:");
-                        ExecuteSameAction(rightPerson, basePeson, i, actionR, faker);
+                        FileOutput.WriteTxtSingleRow("changeLogger", "Right and Base:", iteration);
+                        ExecuteSameAction(rightPerson, basePeson, i, actionR, faker, iteration);
                     }
                 }
-                ExportPerson(resultPerson, "result");
-                ExportPerson(rightPerson, "right");
-                ExportPerson(leftPerson, "left");
-                ExportPerson(basePeson, "base");
+                FileOutput.Export(resultPerson, "result", iteration);
+                FileOutput.Export(rightPerson, "right", iteration);
+                FileOutput.Export(leftPerson, "left", iteration);
+                FileOutput.Export(basePeson, "base", iteration);
                 Console.WriteLine("-----------------------------------------------------");
             }
         }
 
-        private static void ExecuteSameAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker)
+        private static void ExecuteSameAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
         {
+
             if (action == AtributeAction.KEEP)
             {
-                WriteToFile("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'");
-                WriteToFile("StepsToResult", $"Keep attribute: '{branchPerson.GetAttributeName(i)}'");
+                FileOutput.WriteTxtSingleRow("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'", iteration);
 
             }
             else if (action == AtributeAction.CHANGE)
@@ -125,32 +122,30 @@ namespace PersonMaker
                 string step = log.Replace("Changed", "Change");
                 step = step.Replace("'{old}'", "'{newValue}'");
 
-                WriteToFile("changeLogger", log);
-                WriteToFile("StepsToResult", step);
+                FileOutput.WriteTxtSingleRow("changeLogger", log, iteration);
 
                 basePerson.SetAttribute(i, change);
             }
             else if (action == AtributeAction.REMOVE)
             {
                 var oldValue = branchPerson.GetAttribute(i);
-                WriteToFile("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'");
-                WriteToFile("StepsToResult", $"Add attribute: '{branchPerson.GetAttributeName(i)}' with value '{oldValue}'");
+                FileOutput.WriteTxtSingleRow("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'", iteration);
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
             }
 
             else if (action == AtributeAction.ADD)
             {
-                string valueAndNameOfNewAttribute = branchPerson.AddAttribute(i, faker);
-                string[] parts = valueAndNameOfNewAttribute.Split('|');
-                string valueOfNewAttribute = parts[0];
-                string nameOfNewAttribute = parts[1];
+                var valueAndNameOfNewAttribute = branchPerson.AddAttribute(i, faker);
+                string valueOfNewAttribute = valueAndNameOfNewAttribute[0];
+                string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
-                WriteToFile("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'");
-                WriteToFile("StepsToResult", $"Remove attribute: '{nameOfNewAttribute}'");
+                FileOutput.WriteTxtSingleRow("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'", iteration);
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
             }
-            WriteToFile("changeLogger", $"");
+            else             {
+                Console.Error.WriteLine($"Neznámá akce: {action}");
+            }
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
@@ -232,61 +227,6 @@ namespace PersonMaker
                 .RuleFor(p => p.Country, f => f.Address.Country());
 
             return personFaker.Generate();
-        }
-
-        private static void ExportPerson(Person person, string fileName)
-        {
-            if (person == null)
-            {
-                Console.WriteLine("Person je null – export sa nevykoná.");
-                return;
-            }
-
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
-                Directory.CreateDirectory(outputDir);
-
-                string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
-                XmlSerializer xmlSerializer = new(typeof(Person));
-                using (var writer = new StreamWriter(xmlPath))
-                {
-                    xmlSerializer.Serialize(writer, person);
-                }
-                Console.WriteLine($"XML uložený do: {xmlPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri exporte: {ex.Message}");
-            }
-        }
-
-        // Zápis do súboru, po riadku
-        private static void WriteToFile(string fileName, string row)
-        {
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
-                Directory.CreateDirectory(outputDir);
-                string path = Path.Combine(outputDir, $"{fileName}{ActualIteration}.txt");
-
-                //vymazanie obsahu súboru pri prvej iterácii
-                if (!ClearedLogFiles.Contains(path) && File.Exists(path))
-                {
-                    Console.WriteLine($"TXT uložený do: {path}");
-                    File.WriteAllText(path, string.Empty, Encoding.UTF8);
-                    ClearedLogFiles.Add(path);
-                }
-
-                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
-                sw.WriteLine(row);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri zápise do súboru '{fileName}': {ex.Message}");
-            }
         }
     }
 }

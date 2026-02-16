@@ -1,6 +1,5 @@
 ﻿using Bogus;
-using System.Text;
-using System.Xml.Serialization;
+using Shared;
 
 namespace SetMaker
 {
@@ -15,14 +14,12 @@ namespace SetMaker
     {
         static int MadeRemovals;
         static int MadeAdditions;
-        static int ActualIteration;
-        static readonly HashSet<string> ClearedLogFiles = [];
 
         //Konfigurácia generovania dát
         const int MAX_RESULT_SET_SIZE = 10;
         const int MIN_RESULT_SET_SIZE = 10;
 
-        const int ITERATIONS = 1;
+        const int ITERATIONS = 5;
 
         const bool ALLOW_REMOVE = true;
         const bool ALLOW_ADD = true;
@@ -53,19 +50,9 @@ namespace SetMaker
             int targetCount = faker.Random.Int(MIN_RESULT_SET_SIZE, MAX_RESULT_SET_SIZE);
 
             // Vytvorenie základneho (vysledkovy) setu
-            for (ActualIteration = 0; ActualIteration < ITERATIONS; ActualIteration++) // pocet skupin vetiev
+            for (int iteration = 0; iteration < ITERATIONS; iteration++) // pocet skupin vetiev
             {
-                var resultSet = new HashSet<string>(StringComparer.Ordinal);
-
-                while (resultSet.Count < targetCount)
-                {
-                    string value = faker.Random.Word();
-                    if (!resultSet.Contains(value))
-                    {
-                        resultSet.Add(value);
-                    }
-                }
-
+                var resultSet = MakeResultSet(targetCount, faker);
                 var rightSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
                 var leftSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
                 var baseSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
@@ -91,23 +78,20 @@ namespace SetMaker
                     if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
                     {
                         var massage = "L, R, B:";
-                        WriteToFile("changeLog", massage);
-                        //Console.WriteLine(massage);
-                        ExecuteAction(rightSet, baseSet, item, rightAct, faker);
+                        FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
+                        ExecuteAction(rightSet, baseSet, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == SetAction.KEEP)
                     {
                         var massage = "R, B:";
-                        WriteToFile("changeLog", massage);
-                        //Console.WriteLine(massage);
-                        ExecuteAction(rightSet, baseSet, item, rightAct, faker);
+                        FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
+                        ExecuteAction(rightSet, baseSet, item, rightAct, faker, iteration);
                     }
                     else if (rightAct == SetAction.KEEP)
                     {
                         var massage = "L, B:";
-                        WriteToFile("changeLog", massage);
-                        //Console.WriteLine(massage);
-                        ExecuteAction(leftSet, baseSet, item, leftAct, faker);
+                        FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
+                        ExecuteAction(leftSet, baseSet, item, leftAct, faker, iteration);
                     }
                     else
                     {
@@ -117,30 +101,36 @@ namespace SetMaker
                 }
 
                 // Vytvor adresár pre aktuálnu iteráciu a exportuj seti
-                ExportSet(leftSet, "left");
-                ExportSet(rightSet, "right");
-                ExportSet(baseSet, "base");
-                ExportSet(resultSet, "result");
+                FileOutput.Export(leftSet, "left", iteration);
+                FileOutput.Export(rightSet, "right", iteration);
+                FileOutput.Export(baseSet, "base", iteration);
+                FileOutput.Export(resultSet, "result", iteration);
                 Console.WriteLine("--------------------------------------------------");
 
             }
 
         }
 
-        private static void ExecuteAction(HashSet<string> branchSet, HashSet<string> baseSet, string item, SetAction action, Faker faker)
+        private static HashSet<string> MakeResultSet(int size, Faker faker) 
         {
-            if (action == SetAction.KEEP)
-            {
-                var massage = $"Keeping item: {item}";
-                WriteToFile("changeLog", massage);
-                //Console.WriteLine(massage);
-            }
-            else if (action == SetAction.REMOVE)
-            {
-                var massage = $"Removing item: {item}";
-                WriteToFile("changeLog", massage);
-                //Console.WriteLine(massage);
+            var resultSet = new HashSet<string>(StringComparer.Ordinal);
 
+            while (resultSet.Count < size)
+            {
+                string value = faker.Random.Word();
+                if (!resultSet.Contains(value))
+                {
+                    resultSet.Add(value);
+                }
+            }
+            return resultSet;
+        }
+
+        private static void ExecuteAction(HashSet<string> branchSet, HashSet<string> baseSet, string item, SetAction action, Faker faker, int iteration)
+        {
+            var messege = $"Action: {action} for item: {item}";
+            if (action == SetAction.REMOVE)
+            {
                 baseSet.Remove(item);
                 branchSet.Remove(item);
             }
@@ -151,12 +141,16 @@ namespace SetMaker
                 {
                     newItem = faker.Random.Word();
                 }
-                string message = $"Adding item: {newItem}";
-                //Console.WriteLine(message);
-                WriteToFile("changeLog", message);
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
             }
+            else if (action != SetAction.KEEP)
+            {
+                UnauthorizedAccessException ex = new($"Neznáma akcia: {action}");
+                Console.Error.WriteLine(ex.Message);
+                return;
+            }
+            FileOutput.WriteTxtSingleRow("changeLog", messege, iteration);
         }
 
         public static SetAction GetElementAction()
@@ -173,56 +167,6 @@ namespace SetMaker
             int index = new Random().Next(allowed.Count);
 
             return allowed.ElementAt(index);
-        }
-
-        private static void ExportSet(HashSet<string> set, string fileName)
-        {
-            ArgumentNullException.ThrowIfNull(set);
-
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
-                Directory.CreateDirectory(outputDir);
-
-                string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
-                XmlSerializer xmlSerializer = new(typeof(HashSet<string>));
-                using (var writer = new StreamWriter(xmlPath))
-                {
-                    xmlSerializer.Serialize(writer, set);
-                }
-                Console.WriteLine($"XML uložený do: {xmlPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri exporte: {ex.Message}");
-            }
-        }
-
-        private static void WriteToFile(string fileName, string row)
-        {
-            try
-            {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", ActualIteration.ToString());
-                Directory.CreateDirectory(outputDir);
-                string path = Path.Combine(outputDir, $"{fileName}{ActualIteration}.txt");
-
-                //vymazanie obsahu súboru pri prvej iterácii
-                if (!ClearedLogFiles.Contains(path) && File.Exists(path))
-                {
-                    Console.WriteLine($"TXT uložený do: {path}");
-                    File.WriteAllText(path, string.Empty, Encoding.UTF8);
-                    ClearedLogFiles.Add(path);
-                }
-
-                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
-                sw.WriteLine(row);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri zápise do súboru '{fileName}': {ex.Message}");
-            }
         }
     }
 }

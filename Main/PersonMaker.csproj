@@ -11,4 +11,12 @@
     <PackageReference Include="Bogus" Version="35.6.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Shared\Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="createdFiles\" />
+  </ItemGroup>
+
 </Project>
