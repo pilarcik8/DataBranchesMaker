@@ -1,0 +1,47 @@
+﻿<Window x:Class="Interface.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Branch Data Maker" Height="260" Width="520">
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Selector: three checkboxes, exactly one allowed at a time -->
+        <StackPanel Grid.Row="0" Orientation="Vertical" Margin="0,0,0,8">
+            <TextBlock Text="Type of output:" Margin="0,0,0,4"/>
+            <StackPanel Orientation="Horizontal">
+                <CheckBox x:Name="SetCheckBox" Content="Set" Margin="0,0,8,0"
+                          Checked="TargetCheckBox_Checked" Unchecked="TargetCheckBox_Unchecked"/>
+                <CheckBox x:Name="ListCheckBox" Content="List" Margin="0,0,8,0"
+                          Checked="TargetCheckBox_Checked" Unchecked="TargetCheckBox_Unchecked"/>
+                <CheckBox x:Name="ClassCheckBox" Content="Class"
+                          Checked="TargetCheckBox_Checked" Unchecked="TargetCheckBox_Unchecked"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,8">
+            <TextBlock Text="Output folder:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="FolderTextBox" Width="300" />
+            <Button x:Name="BrowseButton" Content="Browse..." Width="80" Margin="8,0,0,0" Click="BrowseButton_Click"/>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,8">
+            <TextBlock Text="Iteration:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="IterationTextBox" Width="60" Text="1"/>
+            <Button x:Name="ExportButton" Content="Export" Width="80" Margin="12,0,0,0" Click="ExportButton_Click"/>
+        </StackPanel>
+
+        <StackPanel x:Name="SizeInputsPanel" Orientation="Horizontal" Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,8" Visibility="Collapsed">
+            <TextBlock Text="Min size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="MinSizeTextBox" Width="60" Text="0"/>
+            <TextBlock Text="Max size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="MaxSizeTextBox" Width="60" Text="0"/>
+        </StackPanel>
+
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="4" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="DarkGreen"/>
+    </Grid>
+</Window>
