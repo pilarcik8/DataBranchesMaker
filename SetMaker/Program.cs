@@ -2,7 +2,7 @@
 using System.Text;
 using System.Xml.Serialization;
 
-namespace TestKniznice
+namespace SetMaker
 {
     public enum SetAction
     {
@@ -16,7 +16,7 @@ namespace TestKniznice
         static int MadeRemovals;
         static int MadeAdditions;
         static int ActualIteration;
-        static HashSet<string> ClearedLogFiles = new HashSet<string>();
+        static readonly HashSet<string> ClearedLogFiles = [];
 
         //Konfigurácia generovania dát
         const int MAX_RESULT_SET_SIZE = 10;
@@ -117,7 +117,6 @@ namespace TestKniznice
                 }
 
                 // Vytvor adresár pre aktuálnu iteráciu a exportuj seti
-                string iterDir = Path.Combine("createdFiles", (ActualIteration).ToString());
                 ExportSet(leftSet, "left");
                 ExportSet(rightSet, "right");
                 ExportSet(baseSet, "base");
@@ -162,7 +161,7 @@ namespace TestKniznice
 
         public static SetAction GetElementAction()
         {
-            List<SetAction> allowed = new List<SetAction>() { SetAction.KEEP };
+            List<SetAction> allowed = [SetAction.KEEP];
             if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals) {
                 allowed.Add(SetAction.REMOVE); 
             }
@@ -178,7 +177,7 @@ namespace TestKniznice
 
         private static void ExportSet(HashSet<string> set, string fileName)
         {
-            if (set == null) throw new ArgumentNullException(nameof(set));
+            ArgumentNullException.ThrowIfNull(set);
 
             try
             {
@@ -187,7 +186,7 @@ namespace TestKniznice
                 Directory.CreateDirectory(outputDir);
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
-                XmlSerializer xmlSerializer = new XmlSerializer(typeof(HashSet<string>));
+                XmlSerializer xmlSerializer = new(typeof(HashSet<string>));
                 using (var writer = new StreamWriter(xmlPath))
                 {
                     xmlSerializer.Serialize(writer, set);
@@ -217,10 +216,8 @@ namespace TestKniznice
                     ClearedLogFiles.Add(path);
                 }
 
-                using (var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8))
-                {
-                    sw.WriteLine(row);
-                }
+                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
+                sw.WriteLine(row);
             }
             catch (Exception ex)
             {

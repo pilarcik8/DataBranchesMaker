@@ -1,9 +1,8 @@
 ﻿using Bogus;
 using System.Text;
 using System.Xml.Serialization;
-using static System.Collections.Specialized.BitVector32;
 
-namespace TestKniznice
+namespace ListMaker
 {
     public enum ListAction
     {
@@ -17,7 +16,7 @@ namespace TestKniznice
     public static class Program
     {
         static int ActualIteration;
-        static HashSet<string> ClearedLogFiles = new HashSet<string>();
+        static readonly HashSet<string> ClearedLogFiles = [];
 
         static int MadeRemovals;
         static int MadeAdditions;
@@ -118,7 +117,6 @@ namespace TestKniznice
                     }
                 }
 
-                string iterDir = Path.Combine("createdFiles", (i).ToString());
                 ExportList(leftList, "left");
                 ExportList(rightList, "right");
                 ExportList(baseList, "base");
@@ -225,7 +223,7 @@ namespace TestKniznice
 
         public static ListAction GetAction()
         {
-            List<ListAction> allowed = new List<ListAction>() { ListAction.KEEP };
+            List<ListAction> allowed = [ListAction.KEEP];
             if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
             {
                 allowed.Add(ListAction.REMOVE);
@@ -246,7 +244,7 @@ namespace TestKniznice
 
         private static void ExportList(List<string> list, string fileName)
         {
-            if (list == null) throw new ArgumentNullException(nameof(list));
+            ArgumentNullException.ThrowIfNull(list);
 
             try
             {
@@ -255,7 +253,7 @@ namespace TestKniznice
                 Directory.CreateDirectory(outputDir);
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
-                XmlSerializer xmlSerializer = new XmlSerializer(typeof(List<string>));
+                XmlSerializer xmlSerializer = new(typeof(List<string>));
                 using (var writer = new StreamWriter(xmlPath))
                 {
                     xmlSerializer.Serialize(writer, list);
@@ -284,10 +282,8 @@ namespace TestKniznice
                     ClearedLogFiles.Add(path);
                 }
 
-                using (var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8))
-                {
-                    sw.WriteLine(row);
-                }
+                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
+                sw.WriteLine(row);
             }
             catch (Exception ex)
             {

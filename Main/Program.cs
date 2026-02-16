@@ -2,7 +2,7 @@
 using System.Text;
 using System.Xml.Serialization;
 
-namespace TestKniznice
+namespace PersonMaker
 {
     public enum AtributeAction
     {
@@ -18,10 +18,10 @@ namespace TestKniznice
         static int MadeRemovals;
         static int MadeAdditions;
         static int ActualIteration;
-        static HashSet<string> ClearedLogFiles = new();
+        static readonly HashSet<string> ClearedLogFiles = [];
 
         // Nastavenia generovania
-        const int ITERATIONS = 1;
+        const int ITERATIONS = 5;
 
         const bool ALLOW_CHANGE = true;
         const bool ALLOW_REMOVE = true;
@@ -51,7 +51,7 @@ namespace TestKniznice
                 ActualIteration = j;
                 // Vytvorenie vyslednej osoby
                 var faker = new Faker("en");
-                Person resultPerson = CreateFakePerson(faker);
+                Person resultPerson = CreateFakePerson();
                 int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
 
                 // Tvorba 2 branchov a ich predka
@@ -193,7 +193,7 @@ namespace TestKniznice
 
         public static AtributeAction GetElementAction()
         {
-            List<AtributeAction> allowed = new List<AtributeAction>() { AtributeAction.KEEP };
+            List<AtributeAction> allowed = [AtributeAction.KEEP];
             if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
             {
                 allowed.Add(AtributeAction.REMOVE);
@@ -211,7 +211,7 @@ namespace TestKniznice
             return allowed.ElementAt(index);
         }
 
-        private static Person CreateFakePerson(Faker faker)
+        private static Person CreateFakePerson()
         {
             var personFaker = new Faker<Person>("en")
                 .RuleFor(p => p.Title, f => f.Name.Prefix())
@@ -249,7 +249,7 @@ namespace TestKniznice
                 Directory.CreateDirectory(outputDir);
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}{ActualIteration}.xml");
-                XmlSerializer xmlSerializer = new XmlSerializer(typeof(Person));
+                XmlSerializer xmlSerializer = new(typeof(Person));
                 using (var writer = new StreamWriter(xmlPath))
                 {
                     xmlSerializer.Serialize(writer, person);
@@ -280,10 +280,8 @@ namespace TestKniznice
                     ClearedLogFiles.Add(path);
                 }
 
-                using (var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8))
-                {
-                    sw.WriteLine(row);
-                }
+                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
+                sw.WriteLine(row);
             }
             catch (Exception ex)
             {

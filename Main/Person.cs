@@ -1,6 +1,6 @@
 ﻿using Bogus;
 
-namespace TestKniznice
+namespace PersonMaker
 {
     // Cely Person.cs zalezi na tom aby sa nemenili tieto atributy a ich indexy
     // Kazdy druhy atribut je aby sa pocas runntimu dal "pridat" novy atribut (nastaveny na null == neexistuje pre xml)
@@ -354,27 +354,26 @@ namespace TestKniznice
 
         public string? GetAttribute(int i)
         {
-            switch (i)
+            return i switch
             {
-                case 0: return Title;
-                case 1: return FirstName;
-                case 2: return LastName;
-                case 3: return Email;
-                case 4: return Phone;
-                case 5: return Gender;
-                case 6: return StreetNumber;
-                case 7: return Company;
-                case 8: return JobTitle;
-                case 9: return CreditCardNumber;
-                case 10: return Street;
-                case 11: return City;
-                case 12: return County;
-                case 13: return State;
-                case 14: return ZipCode;
-                case 15: return Country;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index");
-            }
+                0 => Title,
+                1 => FirstName,
+                2 => LastName,
+                3 => Email,
+                4 => Phone,
+                5 => Gender,
+                6 => StreetNumber,
+                7 => Company,
+                8 => JobTitle,
+                9 => CreditCardNumber,
+                10 => Street,
+                11 => City,
+                12 => County,
+                13 => State,
+                14 => ZipCode,
+                15 => Country,
+                _ => throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index"),
+            };
         }
 
         internal void RemoveAtribute(int i)
@@ -412,7 +411,7 @@ namespace TestKniznice
             }
         }
 
-        internal int? ParseNullableInt(string input)
+        internal static int? ParseNullableInt(string input)
         {
             if (input == null)
                 return null;
@@ -425,27 +424,26 @@ namespace TestKniznice
 
         public string GetAttributeName(int i)
         {
-            switch (i)
+            return i switch
             {
-                case 0: return nameof(Title);
-                case 1: return nameof(FirstName);
-                case 2: return nameof(LastName);
-                case 3: return nameof(Email);
-                case 4: return nameof(Phone);
-                case 5: return nameof(Gender);
-                case 6: return nameof(StreetNumber);
-                case 7: return nameof(Company);
-                case 8: return nameof(JobTitle);
-                case 9: return nameof(CreditCardNumber);
-                case 10: return nameof(Street);
-                case 11: return nameof(City);
-                case 12: return nameof(County);
-                case 13: return nameof(State);
-                case 14: return nameof(ZipCode);
-                case 15: return nameof(Country);
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index");
-            }
+                0 => nameof(Title),
+                1 => nameof(FirstName),
+                2 => nameof(LastName),
+                3 => nameof(Email),
+                4 => nameof(Phone),
+                5 => nameof(Gender),
+                6 => nameof(StreetNumber),
+                7 => nameof(Company),
+                8 => nameof(JobTitle),
+                9 => nameof(CreditCardNumber),
+                10 => nameof(Street),
+                11 => nameof(City),
+                12 => nameof(County),
+                13 => nameof(State),
+                14 => nameof(ZipCode),
+                15 => nameof(Country),
+                _ => throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index"),
+            };
         }
 
         public Person Clone()
