@@ -82,18 +82,18 @@ namespace PersonMaker
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
                         FileOutput.WriteTxtSingleRow("changeLogger", "Left, Right and Base:", iteration);
-                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker, iteration);
+                        ExecuteAction(leftPerson, basePeson, i, actionL, faker, iteration);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
                         FileOutput.WriteTxtSingleRow("changeLogger", "Left and Base:", iteration);
-                        ExecuteSameAction(leftPerson, basePeson, i, actionL, faker, iteration);
+                        ExecuteAction(leftPerson, basePeson, i, actionL, faker, iteration);
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
                         FileOutput.WriteTxtSingleRow("changeLogger", "Right and Base:", iteration);
-                        ExecuteSameAction(rightPerson, basePeson, i, actionR, faker, iteration);
+                        ExecuteAction(rightPerson, basePeson, i, actionR, faker, iteration);
                     }
                 }
                 FileOutput.Export(resultPerson, "result", iteration);
@@ -104,7 +104,7 @@ namespace PersonMaker
             }
         }
 
-        private static void ExecuteSameAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
+        private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
         {
 
             if (action == AtributeAction.KEEP)
@@ -148,45 +148,7 @@ namespace PersonMaker
             }
         }
 
-        // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
-        // Rekurziva
         public static AtributeAction GetAtributeAction()
-        {
-            int randomValue = new Random().Next(4);
-
-            switch (randomValue)
-            {
-                case 0:
-                    return AtributeAction.KEEP;
-
-                case 1:
-                    if (ALLOW_CHANGE && MAX_ALLOWED_CHANGES > MadeChanges)
-                    {
-                        MadeChanges++;
-                        return AtributeAction.CHANGE;
-                    }
-                    return GetAtributeAction();
-
-                case 2:
-                    if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
-                    {
-                        MadeRemovals++;
-                        return AtributeAction.REMOVE;
-                    }
-                    return GetAtributeAction();
-
-                case 3:
-                    if (ALLOW_ADD && MAX_ALLOWED_ADDITIONS > MadeAdditions)
-                    {
-                        MadeAdditions++;
-                        return AtributeAction.ADD;
-                    }
-                    return GetAtributeAction();
-            }
-            return GetAtributeAction();
-        }
-
-        public static AtributeAction GetElementAction()
         {
             List<AtributeAction> allowed = [AtributeAction.KEEP];
             if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
