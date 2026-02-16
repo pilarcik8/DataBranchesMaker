@@ -31,6 +31,14 @@ namespace PersonMaker
  
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
         {
+            if (numberIterations <= 0)
+            {
+                throw new Exception("Zlá nízka hodnota iterácí");
+            }
+            if (!changesAllowed && !removingAllowed && !addingAllowed)
+            {
+                throw new Exception("Žiadna operácia nie je povolená");
+            }
             Iterations = numberIterations;
             AllowChange = changesAllowed;
             AllowRemove = removingAllowed;
@@ -40,6 +48,11 @@ namespace PersonMaker
 
         public static void SetMaxAllowed(int maxChanges, int maxRemovals, int maxAdditions)
         {
+            if (maxChanges <= 0 || maxRemovals <= 0 || maxRemovals <= 0) // v gui to ide menit iba ak je povolena operacia cize 0 nikdy nenastane kedze inicializujem s maxvalue
+            {
+                throw new Exception("Hodnata maximálneho výskytu premeny nemôže byť záporná alebo nula");
+            }
+
             MaxAllowedChanges = maxChanges;
             MaxAllowedRemovals = maxRemovals;
             MaxAllowedAdditions = maxAdditions;
@@ -149,7 +162,7 @@ namespace PersonMaker
             }
             else
             {
-                Console.Error.WriteLine($"Neznámá akce: {action}");
+                throw new Exception("Neznáma akcia nájdená");
             }
         }
 
