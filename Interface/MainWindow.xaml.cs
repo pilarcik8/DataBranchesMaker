@@ -1,12 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Forms;
-using Shared;
-using PersonMaker;
+﻿using System.Windows;
 
-using Person = Shared.Person;
 using PersonMakerSettings = PersonMaker.PersonMaker;
     
 namespace Interface
@@ -27,6 +20,15 @@ namespace Interface
             // default selection: Class
             ClassCheckBox.IsChecked = true;
             UpdateSizeInputsVisibility();
+
+            // Default allowed actions: all available ones should be active by default
+            AllowChangeCheckBox.IsChecked = true;
+            AllowRemoveCheckBox.IsChecked = true;
+            AllowAddCheckBox.IsChecked = true;
+            AllowShiftCheckBox.IsChecked = true;
+
+            // Apply per-target availability (this will enable/disable and set checkboxes appropriately)
+            UpdateAllowedActionsForTarget();
 
             // Default folder: user's Documents
             FolderTextBox.Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
@@ -52,6 +54,7 @@ namespace Interface
             }
 
             UpdateSizeInputsVisibility();
+            UpdateAllowedActionsForTarget();
         }
 
         private void TargetCheckBox_Unchecked(object sender, RoutedEventArgs e)
@@ -62,6 +65,7 @@ namespace Interface
                 if (sender is System.Windows.Controls.CheckBox cb) cb.IsChecked = true;
             }
             UpdateSizeInputsVisibility();
+            UpdateAllowedActionsForTarget();
         }
 
         private void UpdateSizeInputsVisibility()
@@ -69,6 +73,63 @@ namespace Interface
             // Show min/max only when List or Set is selected
             bool showSize = (SetCheckBox.IsChecked == true) || (ListCheckBox.IsChecked == true);
             SizeInputsPanel.Visibility = showSize ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void UpdateAllowedActionsForTarget()
+        {
+            // Determine target
+            bool isSet = SetCheckBox.IsChecked == true;
+            bool isList = ListCheckBox.IsChecked == true;
+            bool isClass = ClassCheckBox.IsChecked == true;
+
+            // For Set: only Add + Remove
+            if (isSet)
+            {
+                AllowAddCheckBox.IsEnabled = true;
+                AllowRemoveCheckBox.IsEnabled = true;
+
+                AllowChangeCheckBox.IsEnabled = false;
+                AllowShiftCheckBox.IsEnabled = false;
+
+                // Default available actions checked
+                if (AllowAddCheckBox.IsChecked != true) AllowAddCheckBox.IsChecked = true;
+                if (AllowRemoveCheckBox.IsChecked != true) AllowRemoveCheckBox.IsChecked = true;
+
+                // Disabled ones uncheck
+                AllowChangeCheckBox.IsChecked = false;
+                AllowShiftCheckBox.IsChecked = false;
+            }
+            // For List: Add, Remove, Change, Shift
+            else if (isList)
+            {
+                AllowAddCheckBox.IsEnabled = true;
+                AllowRemoveCheckBox.IsEnabled = true;
+                AllowChangeCheckBox.IsEnabled = true;
+                AllowShiftCheckBox.IsEnabled = true;
+
+                // ensure available ones are checked by default
+                if (AllowAddCheckBox.IsChecked != true) AllowAddCheckBox.IsChecked = true;
+                if (AllowRemoveCheckBox.IsChecked != true) AllowRemoveCheckBox.IsChecked = true;
+                if (AllowChangeCheckBox.IsChecked != true) AllowChangeCheckBox.IsChecked = true;
+                if (AllowShiftCheckBox.IsChecked != true) AllowShiftCheckBox.IsChecked = true;
+            }
+            // For Class(Person): Add, Remove, Change
+            else if (isClass)
+            {
+                AllowAddCheckBox.IsEnabled = true;
+                AllowRemoveCheckBox.IsEnabled = true;
+                AllowChangeCheckBox.IsEnabled = true;
+
+                AllowShiftCheckBox.IsEnabled = false;
+
+                if (AllowAddCheckBox.IsChecked != true) AllowAddCheckBox.IsChecked = true;
+                if (AllowRemoveCheckBox.IsChecked != true) AllowRemoveCheckBox.IsChecked = true;
+                if (AllowChangeCheckBox.IsChecked != true) AllowChangeCheckBox.IsChecked = true;
+
+                AllowShiftCheckBox.IsChecked = false;
+            }
+
+            UpdateMaxPanelsVisibility();
         }
 
         private ExportTarget GetSelectedTarget()
@@ -185,7 +246,7 @@ namespace Interface
 
                         PersonMakerSettings.Main();
 
-                        StatusTextBlock.Text = $"Exportované do '{folder}'";
+                        StatusTextBlock.Text = $"Exported class Person to '{folder}'";
                         break;
 
                     case ExportTarget.List:
@@ -215,18 +276,20 @@ namespace Interface
 
         private void AllowAction_Checked(object sender, RoutedEventArgs e)
         {
-            // Example: Show/hide max panels based on which checkboxes are checked
-            MaxChangesPanel.Visibility = AllowChangeCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            MaxRemovalsPanel.Visibility = AllowRemoveCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            MaxAdditionsPanel.Visibility = AllowAddCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            UpdateMaxPanelsVisibility();
         }
 
         private void AllowAction_Unchecked(object sender, RoutedEventArgs e)
         {
-            // Same logic as above to update visibility when unchecked
-            MaxChangesPanel.Visibility = AllowChangeCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            MaxRemovalsPanel.Visibility = AllowRemoveCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
-            MaxAdditionsPanel.Visibility = AllowAddCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            UpdateMaxPanelsVisibility();
+        }
+
+        private void UpdateMaxPanelsVisibility()
+        {
+            if (MaxChangesPanel != null) MaxChangesPanel.Visibility = AllowChangeCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (MaxRemovalsPanel != null) MaxRemovalsPanel.Visibility = AllowRemoveCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (MaxAdditionsPanel != null) MaxAdditionsPanel.Visibility = AllowAddCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            if (MaxShiftsPanel != null) MaxShiftsPanel.Visibility = AllowShiftCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }
