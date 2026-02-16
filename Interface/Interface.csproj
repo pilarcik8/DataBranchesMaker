@@ -10,6 +10,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ListMaker\ListMaker.csproj" />
+    <ProjectReference Include="..\Main\PersonMaker.csproj" />
+    <ProjectReference Include="..\SetMaker\SetMaker.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 

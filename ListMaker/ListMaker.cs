@@ -11,29 +11,47 @@ namespace ListMaker
         SHIFT
     }
 
-
-    public static class Program
+    public static class ListMaker
     {
-        static int MadeRemovals;
-        static int MadeAdditions;
-        static int MadeShifts;
+        private static int MadeRemovals = 0;
+        private static int MadeAdditions = 0;
+        private static int MadeShifts = 0;
 
-        // Konfigurácia generovania dát
-        const int MAX_RESULT_LIST_SIZE = 5;
-        const int MIN_RESULT_LIST_SIZE = 5;
-        const int ITERATIONS = 5;
+        public static int Iterations { get; set; } = 5;
+        public static bool AllowChange { get; set; } = true;
+        public static bool AllowRemove { get; set; } = true;
+        public static bool AllowAdd { get; set; } = true;
+        public static bool AllowShift { get; set; } = true;
+        public static int MaxAllowedChanges { get; set; } = int.MaxValue;
+        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        public static int MaxAllowedShifts { get; set; } = int.MaxValue;
+        public static int MaxResultSize { get; set; } = 10;
+        public static int MinResultSize { get; set; } = 10;
+        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
 
-        const bool ALLOW_REMOVE = true;
-        const bool ALLOW_ADD = true;
-        const bool ALLOW_SHIFT = true;
+        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize)
+        {
+            MinResultSize = minResultSize;
+            MaxResultSize = maxResultSize;
+            Iterations = numberIterations;
+            AllowRemove = removingAllowed;
+            AllowAdd = addingAllowed;
+            AllowShift = allowShifts;
+            OutputDirectory = outputDirectory;
+        }
 
-
-        const int MAX_ALLOWED_REMOVALS = int.MaxValue;
-        const int MAX_ALLOWED_ADDITIONS = int.MaxValue;
-        const int MAX_ALLOWED_SHIFTS = int.MaxValue;
+        public static void SetAllowedMax(int maxRemovals, int maxAdditions, int maxShifts)
+        {
+            MaxAllowedRemovals = maxRemovals;
+            MaxAllowedAdditions = maxAdditions;
+            MaxAllowedShifts = maxShifts;
+        }
 
         public static void Main()
         {
+
+            /*
             if (MAX_RESULT_LIST_SIZE < MIN_RESULT_LIST_SIZE ||
                 MIN_RESULT_LIST_SIZE <= 0 ||
                 MAX_RESULT_LIST_SIZE <= 0)
@@ -46,15 +64,15 @@ namespace ListMaker
             {
                 Console.WriteLine("Nie je možné provést žádné změny, oba ALLOW_ADD a ALLOW_REMOVE jsou nastaveny na false.");
                 // return; // Po validacii KEEP odkomentuj!
-            }
+            }*/
             var faker = new Faker();
             MadeAdditions= 0; 
             MadeRemovals = 0; 
             MadeShifts = 0;
 
-            int targetCount = faker.Random.Int(MIN_RESULT_LIST_SIZE, MAX_RESULT_LIST_SIZE);
+            int targetCount = faker.Random.Int(MinResultSize, MaxResultSize);
 
-            for (int iteration = 0; iteration < ITERATIONS; iteration++)
+            for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 var resultList = new List<string>();
 
@@ -110,13 +128,13 @@ namespace ListMaker
                         Console.Error.WriteLine("Nezanama akcia");
                         return;
                     }
-                    FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
+                    FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
                 }
 
-                FileOutput.Export(leftList, "left", iteration);
-                FileOutput.Export(rightList, "right", iteration);
-                FileOutput.Export(baseList, "base", iteration);
-                FileOutput.Export(resultList, "result", iteration);
+                FileOutput.Export(leftList, "left", iteration, OutputDirectory);
+                FileOutput.Export(rightList, "right", iteration, OutputDirectory);
+                FileOutput.Export(baseList, "base", iteration, OutputDirectory);
+                FileOutput.Export(resultList, "result", iteration, OutputDirectory);
                 Console.WriteLine("--------------------------------------------------");
 
             }
@@ -128,12 +146,12 @@ namespace ListMaker
             if (action == ListAction.KEEP)
             {
                 var massage = $"Keeping item: {item}";
-                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
+                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
             }
             else if (action == ListAction.REMOVE)
             {
                 var massage = $"Removing item: {item}";
-                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration);
+                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -166,7 +184,7 @@ namespace ListMaker
 
                 string message = $"Adding item: {newItem} at index {currentIndex}";
                 //Console.WriteLine(message);
-                FileOutput.WriteTxtSingleRow("changeLog", message, iteration);
+                FileOutput.WriteTxtSingleRow("changeLog", message, iteration, OutputDirectory);
             }
             else if (action == ListAction.SHIFT)
             {
@@ -175,7 +193,7 @@ namespace ListMaker
                 if (count <= 1)
                 {
                     var msg = $"Cannot shift item '{item}' in a list with <= 1 element.";
-                    FileOutput.WriteTxtSingleRow("changeLog", msg, iteration);
+                    FileOutput.WriteTxtSingleRow("changeLog", msg, iteration, OutputDirectory);
                     //Console.WriteLine(msg);
                     return;
                 }
@@ -209,7 +227,7 @@ namespace ListMaker
                 }
 
                 var message = $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}";
-                FileOutput.WriteTxtSingleRow("changeLog", message, iteration);
+                FileOutput.WriteTxtSingleRow("changeLog", message, iteration, OutputDirectory);
             }
 
         }
@@ -217,15 +235,15 @@ namespace ListMaker
         public static ListAction GetAction()
         {
             List<ListAction> allowed = [ListAction.KEEP];
-            if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
+            if (AllowRemove && MaxAllowedRemovals > MadeRemovals)
             {
                 allowed.Add(ListAction.REMOVE);
             }
-            if (ALLOW_ADD && MAX_ALLOWED_ADDITIONS > MadeAdditions)
+            if (AllowAdd && MaxAllowedAdditions > MadeAdditions)
             {
                 allowed.Add(ListAction.ADD);
             }
-            if (ALLOW_SHIFT && MAX_ALLOWED_SHIFTS > MadeShifts)
+            if (AllowShift && MaxAllowedShifts > MadeShifts)
             {
                 allowed.Add(ListAction.SHIFT);
             }

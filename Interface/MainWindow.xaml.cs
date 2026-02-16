@@ -4,8 +4,11 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
 using Shared;
-using Person = Shared.Person;
+using PersonMaker;
 
+using Person = Shared.Person;
+using PersonMakerSettings = PersonMaker.PersonMaker;
+    
 namespace Interface
 {
     public partial class MainWindow : Window
@@ -126,22 +129,76 @@ namespace Interface
                 switch (selected)
                 {
                     case ExportTarget.Person:
-                        var person = CreateSamplePerson();
-                        FileOutput.Export(person, "person", iteration, folder);
-                        StatusTextBlock.Text = $"Exported Person to '{folder}'";
+                        // Read allow flags from UI
+                        bool allowChange = AllowChangeCheckBox.IsChecked == true;
+                        bool allowRemove = AllowRemoveCheckBox.IsChecked == true;
+                        bool allowAdd = AllowAddCheckBox.IsChecked == true;
+
+                        // Parse max allowed values only when corresponding Allow is enabled.
+                        int maxChanges = int.MaxValue;
+                        int maxRemovals = int.MaxValue;
+                        int maxAdditions = int.MaxValue;
+
+                        if (allowChange)
+                        {
+                            if (!int.TryParse(MaxChangesTextBox.Text, out maxChanges) || maxChanges < 0)
+                            {
+                                StatusTextBlock.Text = "Max changes must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        if (allowRemove)
+                        {
+                            if (!int.TryParse(MaxRemovalsTextBox.Text, out maxRemovals) || maxRemovals < 0)
+                            {
+                                StatusTextBlock.Text = "Max removals must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        if (allowAdd)
+                        {
+                            if (!int.TryParse(MaxAdditionsTextBox.Text, out maxAdditions) || maxAdditions < 0)
+                            {
+                                StatusTextBlock.Text = "Max additions must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        // Create settings populated from UI values
+                        PersonMakerSettings.SetParameters(
+                            numberIterations: iteration,
+                            changesAllowed: allowChange,
+                            removingAllowed: allowRemove,
+                            addingAllowed: allowAdd,
+                            outputDirectory: folder
+                        );
+
+                        PersonMakerSettings.SetMaxAllowed(
+                            maxChanges: maxChanges,
+                            maxRemovals: maxRemovals,
+                            maxAdditions: maxAdditions
+                        );
+
+
+
+                        PersonMakerSettings.Main();
+
+                        StatusTextBlock.Text = $"Exportované do '{folder}'";
                         break;
 
                     case ExportTarget.List:
                         int listSize = Random.Shared.Next(min!.Value, max!.Value + 1);
-                        var list = CreateSampleList(listSize);
-                        FileOutput.Export(list, "list", iteration, folder);
+                        //var list = CreateSampleList(listSize);
+                        //FileOutput.Export(list, "list", iteration, folder);
                         StatusTextBlock.Text = $"Exported List<string> (size={listSize}) to '{folder}'";
                         break;
 
                     case ExportTarget.HashSet:
                         int setSize = Random.Shared.Next(min!.Value, max!.Value + 1);
-                        var set = CreateSampleSet(setSize);
-                        FileOutput.Export(set, "set", iteration, folder);
+                        //var set = CreateSampleSet(setSize);
+                        //FileOutput.Export(set, "set", iteration, folder);
                         StatusTextBlock.Text = $"Exported HashSet<string> (size={setSize}) to '{folder}'";
                         break;
 
@@ -156,31 +213,20 @@ namespace Interface
             }
         }
 
-        private Person CreateSamplePerson()
+        private void AllowAction_Checked(object sender, RoutedEventArgs e)
         {
-            var p = new Person();
-            p.FirstName = "John";
-            p.LastName = "Doe";
-            p.Email = "john.doe@example.com";
-            p.Phone = "+420 123 456 789";
-            p.Company = "Acme";
-            return p;
+            // Example: Show/hide max panels based on which checkboxes are checked
+            MaxChangesPanel.Visibility = AllowChangeCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            MaxRemovalsPanel.Visibility = AllowRemoveCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            MaxAdditionsPanel.Visibility = AllowAddCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private List<string> CreateSampleList(int size)
+        private void AllowAction_Unchecked(object sender, RoutedEventArgs e)
         {
-            var list = new List<string>(size);
-            for (int i = 0; i < size; i++)
-                list.Add($"item_{i + 1}");
-            return list;
-        }
-
-        private HashSet<string> CreateSampleSet(int size)
-        {
-            var set = new HashSet<string>(StringComparer.Ordinal);
-            for (int i = 0; i < size; i++)
-                set.Add($"item_{i + 1}");
-            return set;
+            // Same logic as above to update visibility when unchecked
+            MaxChangesPanel.Visibility = AllowChangeCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            MaxRemovalsPanel.Visibility = AllowRemoveCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            MaxAdditionsPanel.Visibility = AllowAddCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
     }
 }

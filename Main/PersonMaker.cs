@@ -13,37 +13,45 @@ namespace PersonMaker
         ADD
     }
 
-    public static class Program
+    public static class PersonMaker
     {
-        static int MadeChanges;
-        static int MadeRemovals;
-        static int MadeAdditions;
+        private static int MadeChanges = 0;
+        private static int MadeRemovals = 0;
+        private static int MadeAdditions = 0;
 
-        // Nastavenia generovania
-        const int ITERATIONS = 5;
+        public static int Iterations { get; set; } = 5;
+        public static bool AllowChange { get; set; } = true;
+        public static bool AllowRemove { get; set; } = true;
+        public static bool AllowAdd { get; set; } = true;
+        public static int MaxAllowedChanges { get; set; } = int.MaxValue;
+        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
 
-        const bool ALLOW_CHANGE = true;
-        const bool ALLOW_REMOVE = true;
-        const bool ALLOW_ADD = true;
+ 
+        public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
+        {
+            Iterations = numberIterations;
+            AllowChange = changesAllowed;
+            AllowRemove = removingAllowed;
+            AllowAdd = addingAllowed;
+            OutputDirectory = outputDirectory;
+        }
 
-        const int MAX_ALLOWED_CHANGES = int.MaxValue;
-        const int MAX_ALLOWED_REMOVALS = int.MaxValue;
-        const int MAX_ALLOWED_ADDITIONS = int.MaxValue;
+        public static void SetMaxAllowed(int maxChanges, int maxRemovals, int maxAdditions)
+        {
+            MaxAllowedChanges = maxChanges;
+            MaxAllowedRemovals = maxRemovals;
+            MaxAllowedAdditions = maxAdditions;
+        }
 
         public static void Main()
         {
-            if (!ALLOW_ADD && !ALLOW_REMOVE && !ALLOW_CHANGE)
-            {
-                Console.WriteLine("Nie je možné provést žádné změny, oba ALLOW_ADD a ALLOW_REMOVE jsou nastaveny na false.");
-                // return; // Po validacii KEEP odkomentuj!
-            }
-
-            // Generovanie testovacich dat
             MadeChanges = 0;
             MadeRemovals = 0;
             MadeAdditions = 0;
 
-            for (int iteration = 0; iteration < ITERATIONS; iteration++)
+            for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 Console.WriteLine($"Iteration {iteration}:");
                 // Vytvorenie vyslednej osoby
@@ -81,36 +89,34 @@ namespace PersonMaker
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
-                        FileOutput.WriteTxtSingleRow("changeLogger", "Left, Right and Base:", iteration);
+                        FileOutput.WriteTxtSingleRow("changeLogger", "Left, Right and Base:", iteration, OutputDirectory);
                         ExecuteAction(leftPerson, basePeson, i, actionL, faker, iteration);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
-                        FileOutput.WriteTxtSingleRow("changeLogger", "Left and Base:", iteration);
+                        FileOutput.WriteTxtSingleRow("changeLogger", "Left and Base:", iteration, OutputDirectory);
                         ExecuteAction(leftPerson, basePeson, i, actionL, faker, iteration);
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
-                        FileOutput.WriteTxtSingleRow("changeLogger", "Right and Base:", iteration);
+                        FileOutput.WriteTxtSingleRow("changeLogger", "Right and Base:", iteration, OutputDirectory);
                         ExecuteAction(rightPerson, basePeson, i, actionR, faker, iteration);
                     }
                 }
-                FileOutput.Export(resultPerson, "result", iteration);
-                FileOutput.Export(rightPerson, "right", iteration);
-                FileOutput.Export(leftPerson, "left", iteration);
-                FileOutput.Export(basePeson, "base", iteration);
+                FileOutput.Export(resultPerson, "result", iteration, OutputDirectory);
+                FileOutput.Export(rightPerson, "right", iteration, OutputDirectory);
+                FileOutput.Export(leftPerson, "left", iteration, OutputDirectory);
+                FileOutput.Export(basePeson, "base", iteration, OutputDirectory);
                 Console.WriteLine("-----------------------------------------------------");
             }
         }
 
         private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
         {
-
             if (action == AtributeAction.KEEP)
             {
-                FileOutput.WriteTxtSingleRow("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'", iteration);
-
+                FileOutput.WriteTxtSingleRow("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'", iteration, OutputDirectory);
             }
             else if (action == AtributeAction.CHANGE)
             {
@@ -119,17 +125,15 @@ namespace PersonMaker
                 string[] parts = changeResponse.Split('|');
                 var change = parts[0];
                 var log = parts[1];
-                string step = log.Replace("Changed", "Change");
-                step = step.Replace("'{old}'", "'{newValue}'");
 
-                FileOutput.WriteTxtSingleRow("changeLogger", log, iteration);
+                FileOutput.WriteTxtSingleRow("changeLogger", log, iteration, OutputDirectory);
 
                 basePerson.SetAttribute(i, change);
             }
             else if (action == AtributeAction.REMOVE)
             {
                 var oldValue = branchPerson.GetAttribute(i);
-                FileOutput.WriteTxtSingleRow("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'", iteration);
+                FileOutput.WriteTxtSingleRow("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'", iteration, OutputDirectory);
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
             }
@@ -140,32 +144,34 @@ namespace PersonMaker
                 string valueOfNewAttribute = valueAndNameOfNewAttribute[0];
                 string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
-                FileOutput.WriteTxtSingleRow("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'", iteration);
+                FileOutput.WriteTxtSingleRow("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'", iteration, OutputDirectory);
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
             }
-            else             {
+            else
+            {
                 Console.Error.WriteLine($"Neznámá akce: {action}");
             }
         }
 
+        // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
         public static AtributeAction GetAtributeAction()
         {
-            List<AtributeAction> allowed = [AtributeAction.KEEP];
-            if (ALLOW_REMOVE && MAX_ALLOWED_REMOVALS > MadeRemovals)
+            var allowed = new List<AtributeAction> { AtributeAction.KEEP };
+            if (AllowChange && MaxAllowedChanges > MadeChanges)
+            {
+                allowed.Add(AtributeAction.CHANGE);
+            }
+            if (AllowRemove && MaxAllowedRemovals > MadeRemovals)
             {
                 allowed.Add(AtributeAction.REMOVE);
             }
-            if (ALLOW_ADD && MAX_ALLOWED_ADDITIONS > MadeAdditions)
+            if (AllowAdd && MaxAllowedAdditions > MadeAdditions)
             {
                 allowed.Add(AtributeAction.ADD);
             }
-            if (ALLOW_CHANGE && MAX_ALLOWED_CHANGES > MadeChanges) { 
-                allowed.Add(AtributeAction.CHANGE); 
-            }
 
             int index = new Random().Next(allowed.Count);
-
-            return allowed.ElementAt(index);
+            return allowed[index];
         }
 
         private static Person CreateFakePerson()

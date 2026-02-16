@@ -8,12 +8,11 @@ namespace Shared
         private static readonly HashSet<string> ClearedLogFiles = new();
 
         // Zápis do súboru, po riadku
-        public static void WriteTxtSingleRow(string fileName, string row, int iteration)
+        public static void WriteTxtSingleRow(string fileName, string row, int iteration, string outputDir)
         {
             try
             {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\"));
-                string outputDir = Path.Combine(projectDir, "createdFiles", iteration.ToString());
+                outputDir = Path.Combine(outputDir, iteration.ToString());
                 Directory.CreateDirectory(outputDir);
                 string path = Path.Combine(outputDir, $"{fileName}{iteration}.txt");
 
@@ -34,7 +33,7 @@ namespace Shared
             }
         }
 
-        public static void Export(Object ob, string fileName, int iteration)
+        public static void Export(Object ob, string fileName, int iteration, string outputDir)
         {
             if (ob is null)
             {
@@ -62,8 +61,7 @@ namespace Shared
             
             try
             {
-                string projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\", String.Empty));
-                string outputDir = Path.Combine(projectDir, "createdFiles", iteration.ToString());
+                outputDir = Path.Combine(outputDir, iteration.ToString());
                 Directory.CreateDirectory(outputDir);
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}{iteration}.xml");

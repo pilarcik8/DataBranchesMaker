@@ -1,13 +1,16 @@
 ﻿<Window x:Class="Interface.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Branch Data Maker" Height="260" Width="520">
+        Title="Branch Data Maker" Height="360" Width="520">
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/> <!-- Type selector -->
+            <RowDefinition Height="Auto"/> <!-- Size inputs (min/max) -->
+            <RowDefinition Height="Auto"/> <!-- Allowed actions checkboxes -->
+            <RowDefinition Height="Auto"/> <!-- Max allowed values -->
+            <RowDefinition Height="Auto"/> <!-- Output folder -->
+            <RowDefinition Height="Auto"/> <!-- Iteration + Export -->
+            <RowDefinition Height="*"/>    <!-- Status -->
         </Grid.RowDefinitions>
 
         <!-- Selector: three checkboxes, exactly one allowed at a time -->
@@ -16,32 +19,62 @@
             <StackPanel Orientation="Horizontal">
                 <CheckBox x:Name="SetCheckBox" Content="Set" Margin="0,0,8,0"
                           Checked="TargetCheckBox_Checked" Unchecked="TargetCheckBox_Unchecked"/>
-                <CheckBox x:Name="ListCheckBox" Content="List" Margin="0,0,8,0"
+                <CheckBox x:Name="ListCheckBox" Content="List" Margin="0,0,0,8"
                           Checked="TargetCheckBox_Checked" Unchecked="TargetCheckBox_Unchecked"/>
                 <CheckBox x:Name="ClassCheckBox" Content="Class"
                           Checked="TargetCheckBox_Checked" Unchecked="TargetCheckBox_Unchecked"/>
             </StackPanel>
         </StackPanel>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="1" VerticalAlignment="Center" Margin="0,0,0,8">
+        <!-- Min/Max inputs shown only for Set/List -->
+        <StackPanel x:Name="SizeInputsPanel" Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8" Visibility="Collapsed">
+            <TextBlock Text="Min size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="MinSizeTextBox" Width="60" Text="0" Margin="0,0,12,0"/>
+            <TextBlock Text="Max size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <TextBox x:Name="MaxSizeTextBox" Width="60" Text="5"/>
+        </StackPanel>
+
+        <!-- Allowed actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Allowed actions:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <CheckBox x:Name="AllowChangeCheckBox" Content="Change" Margin="0,0,8,0"
+                      Checked="AllowAction_Checked" Unchecked="AllowAction_Unchecked"/>
+            <CheckBox x:Name="AllowRemoveCheckBox" Content="Remove" Margin="0,0,8,0"
+                      Checked="AllowAction_Checked" Unchecked="AllowAction_Unchecked"/>
+            <CheckBox x:Name="AllowAddCheckBox" Content="Add"
+                      Checked="AllowAction_Checked" Unchecked="AllowAction_Unchecked"/>
+        </StackPanel>
+
+        <!-- Max allowed counters (each in its own panel, visibility controlled by corresponding Allow checkbox) -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
+            <StackPanel x:Name="MaxChangesPanel" Orientation="Horizontal" Margin="0,0,12,0">
+                <TextBlock Text="Max changes:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="MaxChangesTextBox" Width="110" Text="2147483647"/>
+            </StackPanel>
+
+            <StackPanel x:Name="MaxRemovalsPanel" Orientation="Horizontal" Margin="0,0,12,0">
+                <TextBlock Text="Max removals:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="MaxRemovalsTextBox" Width="110" Text="2147483647"/>
+            </StackPanel>
+
+            <StackPanel x:Name="MaxAdditionsPanel" Orientation="Horizontal">
+                <TextBlock Text="Max additions:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="MaxAdditionsTextBox" Width="110" Text="2147483647"/>
+            </StackPanel>
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="4" VerticalAlignment="Center" Margin="0,0,0,8">
             <TextBlock Text="Output folder:" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <TextBox x:Name="FolderTextBox" Width="300" />
             <Button x:Name="BrowseButton" Content="Browse..." Width="80" Margin="8,0,0,0" Click="BrowseButton_Click"/>
         </StackPanel>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="2" VerticalAlignment="Center" Margin="0,0,0,8">
+        <StackPanel Orientation="Horizontal" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,8">
             <TextBlock Text="Iteration:" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <TextBox x:Name="IterationTextBox" Width="60" Text="1"/>
             <Button x:Name="ExportButton" Content="Export" Width="80" Margin="12,0,0,0" Click="ExportButton_Click"/>
         </StackPanel>
 
-        <StackPanel x:Name="SizeInputsPanel" Orientation="Horizontal" Grid.Row="3" VerticalAlignment="Center" Margin="0,0,0,8" Visibility="Collapsed">
-            <TextBlock Text="Min size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="MinSizeTextBox" Width="60" Text="0"/>
-            <TextBlock Text="Max size:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="MaxSizeTextBox" Width="60" Text="0"/>
-        </StackPanel>
-
-        <TextBlock x:Name="StatusTextBlock" Grid.Row="4" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="DarkGreen"/>
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="6" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="DarkGreen"/>
     </Grid>
 </Window>
