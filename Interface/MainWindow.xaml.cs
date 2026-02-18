@@ -1,6 +1,7 @@
 ﻿using System.Windows;
-
+using ListMakerSettings = ListMaker.ListMaker;
 using PersonMakerSettings = PersonMaker.PersonMaker;
+using SetMakerSettings = SetMaker.SetMaker;
     
 namespace Interface
 {
@@ -17,26 +18,21 @@ namespace Interface
         {
             InitializeComponent();
 
-            // default selection: Class
             ClassCheckBox.IsChecked = true;
             UpdateSizeInputsVisibility();
 
-            // Default allowed actions: all available ones should be active by default
             AllowChangeCheckBox.IsChecked = true;
             AllowRemoveCheckBox.IsChecked = true;
             AllowAddCheckBox.IsChecked = true;
             AllowShiftCheckBox.IsChecked = true;
 
-            // Apply per-target availability (this will enable/disable and set checkboxes appropriately)
             UpdateAllowedActionsForTarget();
 
-            // Default folder: user's Documents
             FolderTextBox.Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         }
 
         private void TargetCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            // ensure only one checkbox is checked at a time
             if (sender == SetCheckBox)
             {
                 ListCheckBox.IsChecked = false;
@@ -59,7 +55,6 @@ namespace Interface
 
         private void TargetCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            // prevent having zero checked: re-check the sender if none remain
             if (SetCheckBox.IsChecked != true && ListCheckBox.IsChecked != true && ClassCheckBox.IsChecked != true)
             {
                 if (sender is System.Windows.Controls.CheckBox cb) cb.IsChecked = true;
@@ -70,19 +65,18 @@ namespace Interface
 
         private void UpdateSizeInputsVisibility()
         {
-            // Show min/max only when List or Set is selected
+            // min a max size sú relevantné len pre Set a List, takže ich panel zobrazíme len ak je vybraný Set alebo List
             bool showSize = (SetCheckBox.IsChecked == true) || (ListCheckBox.IsChecked == true);
             SizeInputsPanel.Visibility = showSize ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void UpdateAllowedActionsForTarget()
         {
-            // Determine target
             bool isSet = SetCheckBox.IsChecked == true;
             bool isList = ListCheckBox.IsChecked == true;
             bool isClass = ClassCheckBox.IsChecked == true;
 
-            // For Set: only Add + Remove
+            // Set: Add + Remove
             if (isSet)
             {
                 AllowAddCheckBox.IsEnabled = true;
@@ -91,15 +85,13 @@ namespace Interface
                 AllowChangeCheckBox.IsEnabled = false;
                 AllowShiftCheckBox.IsEnabled = false;
 
-                // Default available actions checked
                 if (AllowAddCheckBox.IsChecked != true) AllowAddCheckBox.IsChecked = true;
                 if (AllowRemoveCheckBox.IsChecked != true) AllowRemoveCheckBox.IsChecked = true;
 
-                // Disabled ones uncheck
                 AllowChangeCheckBox.IsChecked = false;
                 AllowShiftCheckBox.IsChecked = false;
             }
-            // For List: Add, Remove, Change, Shift
+            // List: Add, Remove, Change, Shift
             else if (isList)
             {
                 AllowAddCheckBox.IsEnabled = true;
@@ -107,13 +99,13 @@ namespace Interface
                 AllowChangeCheckBox.IsEnabled = true;
                 AllowShiftCheckBox.IsEnabled = true;
 
-                // ensure available ones are checked by default
+                // na začiatku true, ale ak už používateľ odklikol a zmenil výber, nech to nezruší
                 if (AllowAddCheckBox.IsChecked != true) AllowAddCheckBox.IsChecked = true;
                 if (AllowRemoveCheckBox.IsChecked != true) AllowRemoveCheckBox.IsChecked = true;
                 if (AllowChangeCheckBox.IsChecked != true) AllowChangeCheckBox.IsChecked = true;
                 if (AllowShiftCheckBox.IsChecked != true) AllowShiftCheckBox.IsChecked = true;
             }
-            // For Class(Person): Add, Remove, Change
+            // Class(Person): Add, Remove, Change
             else if (isClass)
             {
                 AllowAddCheckBox.IsEnabled = true;
@@ -189,13 +181,12 @@ namespace Interface
 
                 switch (selected)
                 {
+                    // Class
                     case ExportTarget.Person:
-                        // Read allow flags from UI
                         bool allowChange = AllowChangeCheckBox.IsChecked == true;
                         bool allowRemove = AllowRemoveCheckBox.IsChecked == true;
                         bool allowAdd = AllowAddCheckBox.IsChecked == true;
 
-                        // Parse max allowed values only when corresponding Allow is enabled.
                         int maxChanges = int.MaxValue;
                         int maxRemovals = int.MaxValue;
                         int maxAdditions = int.MaxValue;
@@ -227,7 +218,6 @@ namespace Interface
                             }
                         }
 
-                        // Create settings populated from UI values
                         PersonMakerSettings.SetParameters(
                             numberIterations: iteration,
                             changesAllowed: allowChange,
@@ -242,25 +232,112 @@ namespace Interface
                             maxAdditions: maxAdditions
                         );
 
-
-
                         PersonMakerSettings.Main();
 
                         StatusTextBlock.Text = $"Exported class Person to '{folder}'";
                         break;
 
+                    // List
                     case ExportTarget.List:
-                        int listSize = Random.Shared.Next(min!.Value, max!.Value + 1);
-                        //var list = CreateSampleList(listSize);
-                        //FileOutput.Export(list, "list", iteration, folder);
-                        StatusTextBlock.Text = $"Exported List<string> (size={listSize}) to '{folder}'";
+                        bool listAllowRemove = AllowRemoveCheckBox.IsChecked == true;
+                        bool listAllowAdd = AllowAddCheckBox.IsChecked == true;
+                        bool listAllowShift = AllowShiftCheckBox.IsChecked == true;
+
+                        int listMaxRemovals = int.MaxValue;
+                        int listMaxAdditions = int.MaxValue;
+                        int listMaxShifts = int.MaxValue;
+
+                        if (listAllowRemove)
+                        {
+                            if (!int.TryParse(MaxRemovalsTextBox.Text, out listMaxRemovals) || listMaxRemovals < 0)
+                            {
+                                StatusTextBlock.Text = "Max removals must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        if (listAllowAdd)
+                        {
+                            if (!int.TryParse(MaxAdditionsTextBox.Text, out listMaxAdditions) || listMaxAdditions < 0)
+                            {
+                                StatusTextBlock.Text = "Max additions must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        if (listAllowShift)
+                        {
+                            if (!int.TryParse(MaxShiftsTextBox.Text, out listMaxShifts) || listMaxShifts < 0)
+                            {
+                                StatusTextBlock.Text = "Max shifts must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        ListMakerSettings.SetParameters(
+                            numberIterations: iteration,
+                            removingAllowed: listAllowRemove,
+                            addingAllowed: listAllowAdd,
+                            allowShifts: listAllowShift,
+                            outputDirectory: folder,
+                            minResultSize: min!.Value,
+                            maxResultSize: max!.Value
+                        );
+
+                        ListMakerSettings.SetAllowedMax(
+                            maxRemovals: listMaxRemovals,
+                            maxAdditions: listMaxAdditions,
+                            maxShifts: listMaxShifts
+                        );
+
+                        ListMakerSettings.Main();
+
+                        StatusTextBlock.Text = $"Exported List<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;
 
+                    // Set
                     case ExportTarget.HashSet:
-                        int setSize = Random.Shared.Next(min!.Value, max!.Value + 1);
-                        //var set = CreateSampleSet(setSize);
-                        //FileOutput.Export(set, "set", iteration, folder);
-                        StatusTextBlock.Text = $"Exported HashSet<string> (size={setSize}) to '{folder}'";
+                        bool setAllowRemove = AllowRemoveCheckBox.IsChecked == true;
+                        bool setAllowAdd = AllowAddCheckBox.IsChecked == true;
+
+                        int setMaxRemovals = int.MaxValue;
+                        int setMaxAdditions = int.MaxValue;
+
+                        if (setAllowRemove)
+                        {
+                            if (!int.TryParse(MaxRemovalsTextBox.Text, out setMaxRemovals) || setMaxRemovals < 0)
+                            {
+                                StatusTextBlock.Text = "Max removals must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        if (setAllowAdd)
+                        {
+                            if (!int.TryParse(MaxAdditionsTextBox.Text, out setMaxAdditions) || setMaxAdditions < 0)
+                            {
+                                StatusTextBlock.Text = "Max additions must be a non-negative integer.";
+                                return;
+                            }
+                        }
+
+                        SetMakerSettings.SetParameters(
+                            numberIterations: iteration,
+                            removingAllowed: setAllowRemove,
+                            addingAllowed: setAllowAdd,
+                            outputDirectory: folder,
+                            minResultSize: min!.Value,
+                            maxResultSize: max!.Value
+                        );
+
+                        SetMakerSettings.SetAllowedMax(
+                            maxRemovals: setMaxRemovals,
+                            maxAdditions: setMaxAdditions
+                        );
+
+                        SetMakerSettings.Main();
+
+                        StatusTextBlock.Text = $"Exported HashSet<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;
 
                     default:
