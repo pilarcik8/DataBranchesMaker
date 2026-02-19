@@ -117,10 +117,10 @@ namespace PersonMaker
                         ExecuteAction(rightPerson, basePeson, i, actionR, faker, iteration);
                     }
                 }
-                FileOutput.Export(resultPerson, "result", iteration, OutputDirectory);
                 FileOutput.Export(rightPerson, "right", iteration, OutputDirectory);
                 FileOutput.Export(leftPerson, "left", iteration, OutputDirectory);
                 FileOutput.Export(basePeson, "base", iteration, OutputDirectory);
+                FileOutput.Export(resultPerson, "expectedResult", iteration, OutputDirectory);
                 Console.WriteLine("-----------------------------------------------------");
             }
         }

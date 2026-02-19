@@ -105,7 +105,7 @@ namespace SetMaker
                 FileOutput.Export(leftSet, "left", iteration, OutputDirectory);
                 FileOutput.Export(rightSet, "right", iteration, OutputDirectory);
                 FileOutput.Export(baseSet, "base", iteration, OutputDirectory);
-                FileOutput.Export(resultSet, "result", iteration, OutputDirectory);
+                FileOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
                 Console.WriteLine("--------------------------------------------------");
 
             }

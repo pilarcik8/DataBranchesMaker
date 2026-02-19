@@ -134,7 +134,7 @@ namespace ListMaker
                 FileOutput.Export(leftList, "left", iteration, OutputDirectory);
                 FileOutput.Export(rightList, "right", iteration, OutputDirectory);
                 FileOutput.Export(baseList, "base", iteration, OutputDirectory);
-                FileOutput.Export(resultList, "result", iteration, OutputDirectory);
+                FileOutput.Export(resultList, "expectedResult", iteration, OutputDirectory);
                 Console.WriteLine("--------------------------------------------------");
 
             }
