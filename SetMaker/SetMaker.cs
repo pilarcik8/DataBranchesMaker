@@ -48,11 +48,11 @@ namespace SetMaker
             MadeRemovals = 0;
             MadeAdditions = 0;
 
-            int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize);
-
             // Vytvorenie základneho (vysledkovy) setu
             for (int iteration = 0; iteration < Iterations; iteration++) // pocet skupin vetiev
             {
+                int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
+
                 var resultSet = MakeResultSet(targetCount, faker);
                 var rightSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
                 var leftSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
@@ -101,15 +101,12 @@ namespace SetMaker
                     }
                 }
 
-                // Vytvor adresár pre aktuálnu iteráciu a exportuj seti
                 FileOutput.Export(leftSet, "left", iteration, OutputDirectory);
                 FileOutput.Export(rightSet, "right", iteration, OutputDirectory);
                 FileOutput.Export(baseSet, "base", iteration, OutputDirectory);
                 FileOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
                 Console.WriteLine("--------------------------------------------------");
-
             }
-
         }
 
         private static HashSet<string> MakeResultSet(int size, Faker faker) 

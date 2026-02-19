@@ -49,14 +49,15 @@ namespace ListMaker
         public static void Main()
         {
             var faker = new Faker();
-            MadeAdditions= 0; 
-            MadeRemovals = 0; 
+            MadeAdditions = 0;
+            MadeRemovals = 0;
             MadeShifts = 0;
-
-            int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize);
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
+                // choose targetCount per iteration and include MaxResultSize
+                int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
+
                 var resultList = new List<string>();
 
                 while (resultList.Count < targetCount)
@@ -119,9 +120,7 @@ namespace ListMaker
                 FileOutput.Export(baseList, "base", iteration, OutputDirectory);
                 FileOutput.Export(resultList, "expectedResult", iteration, OutputDirectory);
                 Console.WriteLine("--------------------------------------------------");
-
             }
-
         }
 
         private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)

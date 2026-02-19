@@ -147,9 +147,9 @@ namespace Interface
         {
             try
             {
-                if (!int.TryParse(IterationTextBox.Text, out int iteration) || iteration < 0)
+                if (!int.TryParse(IterationTextBox.Text, out int iteration) || iteration <= 0)
                 {
-                    StatusTextBlock.Text = "Iteration must be a non-negative integer.";
+                    StatusTextBlock.Text = "Iteration must be a positive integer.";
                     return;
                 }
 
