@@ -48,7 +48,7 @@ namespace SetMaker
             MadeRemovals = 0;
             MadeAdditions = 0;
 
-            int targetCount = faker.Random.Int(MinResultSize, MaxResultSize);
+            int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize);
 
             // Vytvorenie základneho (vysledkovy) setu
             for (int iteration = 0; iteration < Iterations; iteration++) // pocet skupin vetiev
@@ -134,6 +134,7 @@ namespace SetMaker
             {
                 baseSet.Remove(item);
                 branchSet.Remove(item);
+                MadeRemovals++;
             }
             else if (action == SetAction.ADD)
             {
@@ -144,30 +145,37 @@ namespace SetMaker
                 }
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
-            }
-            else if (action != SetAction.KEEP)
-            {
-                UnauthorizedAccessException ex = new($"Neznáma akcia: {action}");
-                Console.Error.WriteLine(ex.Message);
-                return;
+                MadeAdditions++;
             }
             FileOutput.WriteTxtSingleRow("changeLog", messege, iteration, OutputDirectory);
         }
 
         public static SetAction GetElementAction()
         {
-            List<SetAction> allowed = [SetAction.KEEP];
-            if (AllowRemove && MaxAllowedRemovals > MadeRemovals) {
-                allowed.Add(SetAction.REMOVE); 
+            var allowed = new List<SetAction> { SetAction.KEEP };
+
+            int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
+            int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
+
+            int remainingModifications = remaningAdd + remaningRemove;
+
+            if (remainingModifications == 1)
+            {
+                int randomValue = Random.Shared.Next(5);
+                if (randomValue != 0) return SetAction.KEEP;
             }
-            if (AllowAdd && MaxAllowedAdditions > MadeAdditions)
+
+            if (remaningRemove > 0)
+            {
+                allowed.Add(SetAction.REMOVE);
+            }
+            if (remaningAdd > 0)
             {
                 allowed.Add(SetAction.ADD);
             }
 
-            int index = new Random().Next(allowed.Count);
-
-            return allowed.ElementAt(index);
+            int index = Random.Shared.Next(allowed.Count);
+            return allowed[index];
         }
     }
 }

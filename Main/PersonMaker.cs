@@ -142,6 +142,7 @@ namespace PersonMaker
                 FileOutput.WriteTxtSingleRow("changeLogger", log, iteration, OutputDirectory);
 
                 basePerson.SetAttribute(i, change);
+                MadeChanges++;
             }
             else if (action == AtributeAction.REMOVE)
             {
@@ -149,6 +150,7 @@ namespace PersonMaker
                 FileOutput.WriteTxtSingleRow("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'", iteration, OutputDirectory);
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
+                MadeRemovals++;
             }
 
             else if (action == AtributeAction.ADD)
@@ -159,6 +161,7 @@ namespace PersonMaker
 
                 FileOutput.WriteTxtSingleRow("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'", iteration, OutputDirectory);
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
+                MadeAdditions++;
             }
             else
             {
@@ -170,20 +173,36 @@ namespace PersonMaker
         public static AtributeAction GetAtributeAction()
         {
             var allowed = new List<AtributeAction> { AtributeAction.KEEP };
-            if (AllowChange && MaxAllowedChanges > MadeChanges)
+            
+            int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
+            int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;
+            int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
+
+            int remainingModifications = remaningAdd + remaningChange + remaningRemove;
+
+            // Keď je povolená len jedna posledna modifikacia, chceme aby KEEP padal častejšie
+            // Špecialne hlavne ak od zaciatku je iba jedna modifikacia povolena, modifikacia by padala prilis skoro a potom by sa uz len KEEP opakoval
+            if (remainingModifications == 1)
+            {
+                int randomValue = Random.Shared.Next(5);
+                if (randomValue != 0) return AtributeAction.KEEP;
+            }
+
+            // Normany vyber akcii, v zavislosti od toho co je este povolene a kolko z toho este moze padat
+            if (remaningChange > 0)
             {
                 allowed.Add(AtributeAction.CHANGE);
             }
-            if (AllowRemove && MaxAllowedRemovals > MadeRemovals)
+            if (remaningRemove > 0)
             {
                 allowed.Add(AtributeAction.REMOVE);
             }
-            if (AllowAdd && MaxAllowedAdditions > MadeAdditions)
+            if (remaningAdd > 0)
             {
                 allowed.Add(AtributeAction.ADD);
             }
 
-            int index = new Random().Next(allowed.Count);
+            int index = Random.Shared.Next(allowed.Count);
             return allowed[index];
         }
 

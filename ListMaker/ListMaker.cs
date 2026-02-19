@@ -18,11 +18,9 @@ namespace ListMaker
         private static int MadeShifts = 0;
 
         public static int Iterations { get; set; } = 5;
-        public static bool AllowChange { get; set; } = true;
         public static bool AllowRemove { get; set; } = true;
         public static bool AllowAdd { get; set; } = true;
         public static bool AllowShift { get; set; } = true;
-        public static int MaxAllowedChanges { get; set; } = int.MaxValue;
         public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
         public static int MaxAllowedShifts { get; set; } = int.MaxValue;
@@ -50,27 +48,12 @@ namespace ListMaker
 
         public static void Main()
         {
-
-            /*
-            if (MAX_RESULT_LIST_SIZE < MIN_RESULT_LIST_SIZE ||
-                MIN_RESULT_LIST_SIZE <= 0 ||
-                MAX_RESULT_LIST_SIZE <= 0)
-            {
-                Console.Error.WriteLine("Set s takymi velkostami nie je mozne vytvoriť");
-                return;
-            }
-
-            if (!ALLOW_ADD && !ALLOW_REMOVE && !ALLOW_SHIFT)
-            {
-                Console.WriteLine("Nie je možné provést žádné změny, oba ALLOW_ADD a ALLOW_REMOVE jsou nastaveny na false.");
-                // return; // Po validacii KEEP odkomentuj!
-            }*/
             var faker = new Faker();
             MadeAdditions= 0; 
             MadeRemovals = 0; 
             MadeShifts = 0;
 
-            int targetCount = faker.Random.Int(MinResultSize, MaxResultSize);
+            int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize);
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
@@ -155,6 +138,7 @@ namespace ListMaker
 
                 baseList.Remove(item);
                 branchList.Remove(item);
+                MadeRemovals++;
             }
             else if (action == ListAction.ADD)
             {
@@ -183,8 +167,8 @@ namespace ListMaker
                 }
 
                 string message = $"Adding item: {newItem} at index {currentIndex}";
-                //Console.WriteLine(message);
                 FileOutput.WriteTxtSingleRow("changeLog", message, iteration, OutputDirectory);
+                MadeAdditions++;
             }
             else if (action == ListAction.SHIFT)
             {
@@ -194,7 +178,6 @@ namespace ListMaker
                 {
                     var msg = $"Cannot shift item '{item}' in a list with <= 1 element.";
                     FileOutput.WriteTxtSingleRow("changeLog", msg, iteration, OutputDirectory);
-                    //Console.WriteLine(msg);
                     return;
                 }
 
@@ -208,7 +191,9 @@ namespace ListMaker
                 int targetIndex = Random.Shared.Next(count);
 
                 while (targetIndex == currentIndex)
+                {
                     targetIndex = Random.Shared.Next(count);
+                }
 
                 branchList.RemoveAt(currentIndex);
                 int insertIndex = targetIndex > currentIndex ? targetIndex - 1 : targetIndex;
@@ -228,29 +213,41 @@ namespace ListMaker
 
                 var message = $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}";
                 FileOutput.WriteTxtSingleRow("changeLog", message, iteration, OutputDirectory);
+                MadeShifts++;
             }
-
         }
 
         public static ListAction GetAction()
         {
             List<ListAction> allowed = [ListAction.KEEP];
-            if (AllowRemove && MaxAllowedRemovals > MadeRemovals)
+
+            int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
+            int remaningShift = AllowShift ? MaxAllowedShifts - MadeShifts : 0;
+            int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
+
+            int remainingModifications = remaningAdd + remaningShift + remaningRemove;
+
+            if (remainingModifications == 1)
             {
-                allowed.Add(ListAction.REMOVE);
+                int randomValue = Random.Shared.Next(5);
+                if (randomValue != 0) return ListAction.KEEP;
             }
-            if (AllowAdd && MaxAllowedAdditions > MadeAdditions)
-            {
-                allowed.Add(ListAction.ADD);
-            }
-            if (AllowShift && MaxAllowedShifts > MadeShifts)
+
+            if (remaningShift > 0)
             {
                 allowed.Add(ListAction.SHIFT);
             }
+            if (remaningRemove > 0)
+            {
+                allowed.Add(ListAction.REMOVE);
+            }
+            if (remaningAdd > 0)
+            {
+                allowed.Add(ListAction.ADD);
+            }
 
-            int index = new Random().Next(allowed.Count);
-
-            return allowed.ElementAt(index);
+            int index = Random.Shared.Next(allowed.Count);
+            return allowed[index];
         }
     }
 }
