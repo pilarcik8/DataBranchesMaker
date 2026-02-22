@@ -1,5 +1,6 @@
 ﻿using Bogus;
 using Shared;
+using System.Text;
 
 namespace SetMaker
 {
@@ -24,6 +25,7 @@ namespace SetMaker
         public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
+        public static string ChangeLogText = "";
 
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize)
@@ -51,6 +53,7 @@ namespace SetMaker
             // Vytvorenie základneho (vysledkovy) setu
             for (int iteration = 0; iteration < Iterations; iteration++) // pocet skupin vetiev
             {
+                ChangeLogText = string.Empty;
                 int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
                 var resultSet = MakeResultSet(targetCount, faker);
@@ -60,7 +63,7 @@ namespace SetMaker
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                Console.WriteLine($"Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}");
+                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
                 foreach (string item in resultSet)
                 {
@@ -78,34 +81,34 @@ namespace SetMaker
 
                     if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
                     {
-                        var massage = "L, R, B:";
-                        FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
+                        ChangeLogText += "Left, Right and Base\n";
                         ExecuteAction(rightSet, baseSet, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == SetAction.KEEP)
                     {
-                        var massage = "R, B:";
-                        FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
+                        ChangeLogText += "Right and Base\n";
                         ExecuteAction(rightSet, baseSet, item, rightAct, faker, iteration);
                     }
                     else if (rightAct == SetAction.KEEP)
                     {
-                        var massage = "L, B:";
-                        FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
+                        ChangeLogText += "Left and Base\n";
                         ExecuteAction(leftSet, baseSet, item, leftAct, faker, iteration);
                     }
                     else
                     {
-                        Console.Error.WriteLine("Setmaker - nenašla sa vetva s KEEP akciou\nRA: " + rightAct.ToString() + "LA: " + leftAct.ToString());
+                        ChangeLogText += "Setmaker - nenašla sa vetva s KEEP akciou\nRA: " + rightAct.ToString() + "LA: " + leftAct.ToString() + "\n";
                         return;
                     }
                 }
 
-                FileOutput.Export(leftSet, "left", iteration, OutputDirectory);
-                FileOutput.Export(rightSet, "right", iteration, OutputDirectory);
-                FileOutput.Export(baseSet, "base", iteration, OutputDirectory);
-                FileOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
-                Console.WriteLine("--------------------------------------------------");
+                XMLOutput.Export(leftSet, "left", iteration, OutputDirectory);
+                XMLOutput.Export(rightSet, "right", iteration, OutputDirectory);
+                XMLOutput.Export(baseSet, "base", iteration, OutputDirectory);
+                XMLOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
+
+                string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
+                Directory.CreateDirectory(iterationDir);
+                File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
         }
 
@@ -144,7 +147,7 @@ namespace SetMaker
                 branchSet.Add(newItem);
                 MadeAdditions++;
             }
-            FileOutput.WriteTxtSingleRow("changeLog", messege, iteration, OutputDirectory);
+            ChangeLogText += messege + "\n";
         }
 
         public static SetAction GetElementAction()

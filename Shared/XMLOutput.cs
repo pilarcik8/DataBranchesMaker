@@ -3,36 +3,8 @@ using System.Xml.Serialization;
 
 namespace Shared
 {
-    public static class FileOutput
+    public static class XMLOutput
     {
-        private static readonly HashSet<string> ClearedLogFiles = new();
-
-        // Zápis do súboru, po riadku
-        public static void WriteTxtSingleRow(string fileName, string row, int iteration, string outputDir)
-        {
-            try
-            {
-                outputDir = Path.Combine(outputDir, iteration.ToString());
-                Directory.CreateDirectory(outputDir);
-                string path = Path.Combine(outputDir, $"{fileName}{iteration}.txt");
-
-                //vymazanie obsahu súboru pri prvej iterácii
-                if (!ClearedLogFiles.Contains(path) && File.Exists(path))
-                {
-                    Console.WriteLine($"TXT uložený do: {path}");
-                    File.WriteAllText(path, string.Empty, Encoding.UTF8);
-                    ClearedLogFiles.Add(path);
-                }
-
-                using var sw = new StreamWriter(path, append: true, encoding: Encoding.UTF8);
-                sw.WriteLine(row);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Chyba pri zápise do súboru '{fileName}': {ex.Message}");
-            }
-        }
-
         public static void Export(Object ob, string fileName, int iteration, string outputDir)
         {
             if (ob is null)

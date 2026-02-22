@@ -1,4 +1,7 @@
-﻿using Bogus;
+﻿using System;
+using System.IO;
+using System.Text;
+using Bogus;
 using Shared;
 
 namespace ListMaker
@@ -28,6 +31,8 @@ namespace ListMaker
         public static int MinResultSize { get; set; } = 10;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
 
+        public static string ChangeLogText = "";
+
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize)
         {
             MinResultSize = minResultSize;
@@ -55,7 +60,8 @@ namespace ListMaker
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
-                // choose targetCount per iteration and include MaxResultSize
+                ChangeLogText = string.Empty;
+
                 int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
                 var resultList = new List<string>();
@@ -75,13 +81,13 @@ namespace ListMaker
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                Console.WriteLine($"Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}");
+                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
                 foreach (string item in resultList)
                 {
                     ListAction leftAct, rightAct;
-                    string massage;
-                    if (Random.Shared.NextDouble() > leftKeepProbability)
+                    string message;
+                    if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
                         leftAct = ListAction.KEEP;
                         rightAct = GetAction();
@@ -94,46 +100,51 @@ namespace ListMaker
 
                     if (leftAct == ListAction.KEEP && rightAct == ListAction.KEEP)
                     {
-                        massage = "L, R, B:";
+                        message = "L, R, B:";
+                        ChangeLogText += message + "\n";
                         ExecuteAction(rightList, baseList, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == ListAction.KEEP)
                     {
-                        massage = "R, B:";
+                        message = "R, B:";
+                        ChangeLogText += message + "\n";
                         ExecuteAction(rightList, baseList, item, rightAct, faker, iteration);
                     }
                     else if (rightAct == ListAction.KEEP)
                     {
-                        massage = "L, B:";
-                        ExecuteAction(leftList, baseList, item, leftAct, faker, iteration);
+                        message = "L, B:";
+                        ChangeLogText += message + "\n";
+                        ExecuteAction(leftList, baseList, item, rightAct, faker, iteration);
+
                     }
                     else
                     {
                         Console.Error.WriteLine("Nezanama akcia");
                         return;
                     }
-                    FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
                 }
 
-                FileOutput.Export(leftList, "left", iteration, OutputDirectory);
-                FileOutput.Export(rightList, "right", iteration, OutputDirectory);
-                FileOutput.Export(baseList, "base", iteration, OutputDirectory);
-                FileOutput.Export(resultList, "expectedResult", iteration, OutputDirectory);
-                Console.WriteLine("--------------------------------------------------");
+                XMLOutput.Export(leftList, "left", iteration, OutputDirectory);
+                XMLOutput.Export(rightList, "right", iteration, OutputDirectory);
+                XMLOutput.Export(baseList, "base", iteration, OutputDirectory);
+                XMLOutput.Export(resultList, "expectedResult", iteration, OutputDirectory);
+
+                string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
+                Directory.CreateDirectory(iterationDir);
+                File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
         }
 
         private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)
         {
+            string message = "";
             if (action == ListAction.KEEP)
             {
-                var massage = $"Keeping item: {item}";
-                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
+                message = $"Keeping item: {item}";
             }
             else if (action == ListAction.REMOVE)
             {
-                var massage = $"Removing item: {item}";
-                FileOutput.WriteTxtSingleRow("changeLog", massage, iteration, OutputDirectory);
+                message = $"Removing item: {item}";
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -165,8 +176,7 @@ namespace ListMaker
                     baseList.Add(newItem);
                 }
 
-                string message = $"Adding item: {newItem} at index {currentIndex}";
-                FileOutput.WriteTxtSingleRow("changeLog", message, iteration, OutputDirectory);
+                message = $"Adding item: {newItem} at index {currentIndex}";
                 MadeAdditions++;
             }
             else if (action == ListAction.SHIFT)
@@ -176,7 +186,7 @@ namespace ListMaker
                 if (count <= 1)
                 {
                     var msg = $"Cannot shift item '{item}' in a list with <= 1 element.";
-                    FileOutput.WriteTxtSingleRow("changeLog", msg, iteration, OutputDirectory);
+                    ChangeLogText += msg + "\n";
                     return;
                 }
 
@@ -184,7 +194,6 @@ namespace ListMaker
                 if (currentIndex < 0)
                 {
                     throw new InvalidOperationException($"Item '{item}' not found in branch list - cannot shift.");
-
                 }
 
                 int targetIndex = Random.Shared.Next(count);
@@ -210,15 +219,16 @@ namespace ListMaker
                     baseList.Insert(baseInsert, item);
                 }
 
-                var message = $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}";
-                FileOutput.WriteTxtSingleRow("changeLog", message, iteration, OutputDirectory);
+                message = $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}";
                 MadeShifts++;
             }
+
+            ChangeLogText += message + "\n";
         }
 
         public static ListAction GetAction()
         {
-            List<ListAction> allowed = [ListAction.KEEP];
+            var allowed = new List<ListAction> { ListAction.KEEP };
 
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningShift = AllowShift ? MaxAllowedShifts - MadeShifts : 0;

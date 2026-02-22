@@ -1,6 +1,6 @@
 ﻿using Bogus;
 using Shared;
-
+using System.Text;
 using Person = Shared.Person;
 
 namespace PersonMaker
@@ -28,7 +28,9 @@ namespace PersonMaker
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
 
- 
+        public static string ChangeLogText = "";
+
+
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
         {
             if (numberIterations <= 0)
@@ -66,6 +68,7 @@ namespace PersonMaker
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
+                ChangeLogText = string.Empty;
                 Console.WriteLine($"Iteration {iteration}:");
                 // Vytvorenie vyslednej osoby
                 var faker = new Faker("en");
@@ -80,7 +83,7 @@ namespace PersonMaker
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                Console.WriteLine($"Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}");
+                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
                 for (int i = 0; i < baseAtributeCount; i++)
                 {
@@ -97,31 +100,33 @@ namespace PersonMaker
                     {
                         actionL = GetAtributeAction();
                         actionR = AtributeAction.KEEP;
-
                     }
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
-                        FileOutput.WriteTxtSingleRow("changeLogger", "Left, Right and Base:", iteration, OutputDirectory);
+                        ChangeLogText += "Left, Right and Base\n";
                         ExecuteAction(leftPerson, basePeson, i, actionL, faker, iteration);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
-                        FileOutput.WriteTxtSingleRow("changeLogger", "Left and Base:", iteration, OutputDirectory);
+                        ChangeLogText += "Left and Base:\n";
                         ExecuteAction(leftPerson, basePeson, i, actionL, faker, iteration);
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
-                        FileOutput.WriteTxtSingleRow("changeLogger", "Right and Base:", iteration, OutputDirectory);
+                        ChangeLogText += "Right and Base:\n";
                         ExecuteAction(rightPerson, basePeson, i, actionR, faker, iteration);
                     }
                 }
-                FileOutput.Export(rightPerson, "right", iteration, OutputDirectory);
-                FileOutput.Export(leftPerson, "left", iteration, OutputDirectory);
-                FileOutput.Export(basePeson, "base", iteration, OutputDirectory);
-                FileOutput.Export(resultPerson, "expectedResult", iteration, OutputDirectory);
-                Console.WriteLine("-----------------------------------------------------");
+                XMLOutput.Export(rightPerson, "right", iteration, OutputDirectory);
+                XMLOutput.Export(leftPerson, "left", iteration, OutputDirectory);
+                XMLOutput.Export(basePeson, "base", iteration, OutputDirectory);
+                XMLOutput.Export(resultPerson, "expectedResult", iteration, OutputDirectory);
+
+                string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
+                Directory.CreateDirectory(iterationDir);
+                File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
         }
 
@@ -129,7 +134,7 @@ namespace PersonMaker
         {
             if (action == AtributeAction.KEEP)
             {
-                FileOutput.WriteTxtSingleRow("changeLogger", $"Kept attribute: '{branchPerson.GetAttributeName(i)}'", iteration, OutputDirectory);
+                ChangeLogText += $"Kept attribute: '{branchPerson.GetAttributeName(i)}'\n";
             }
             else if (action == AtributeAction.CHANGE)
             {
@@ -139,7 +144,7 @@ namespace PersonMaker
                 var change = parts[0];
                 var log = parts[1];
 
-                FileOutput.WriteTxtSingleRow("changeLogger", log, iteration, OutputDirectory);
+                ChangeLogText += $"Changed attribute: '{branchPerson.GetAttributeName(i)}' to '{change}'\n";
 
                 basePerson.SetAttribute(i, change);
                 MadeChanges++;
@@ -147,7 +152,7 @@ namespace PersonMaker
             else if (action == AtributeAction.REMOVE)
             {
                 var oldValue = branchPerson.GetAttribute(i);
-                FileOutput.WriteTxtSingleRow("changeLogger", $"Removed attribute: '{branchPerson.GetAttributeName(i)}'", iteration, OutputDirectory);
+                ChangeLogText += $"Removed attribute: '{branchPerson.GetAttributeName(i)}' with value '{oldValue}'\n";
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
                 MadeRemovals++;
@@ -159,7 +164,7 @@ namespace PersonMaker
                 string valueOfNewAttribute = valueAndNameOfNewAttribute[0];
                 string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
-                FileOutput.WriteTxtSingleRow("changeLogger", $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'", iteration, OutputDirectory);
+                ChangeLogText += $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'\n";
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
                 MadeAdditions++;
             }
@@ -167,6 +172,7 @@ namespace PersonMaker
             {
                 throw new Exception("Neznáma akcia nájdená");
             }
+
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
