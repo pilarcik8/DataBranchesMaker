@@ -32,6 +32,8 @@ namespace ListMaker
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
 
         public static string ChangeLogText = "";
+        public static int BaseSize;
+        public static bool NextWillBeKeep = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize)
         {
@@ -86,6 +88,7 @@ namespace ListMaker
                 foreach (string item in resultList)
                 {
                     ListAction leftAct, rightAct;
+                    BaseSize = baseList.Count;
                     string message;
                     if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
@@ -225,6 +228,12 @@ namespace ListMaker
 
         public static ListAction GetAction()
         {
+            // ked nastane remove, dalsia akcia musi byt keep, inak merger nerozozna poradie prvkov
+            if (NextWillBeKeep)
+            {
+                NextWillBeKeep = false;
+                return ListAction.KEEP;
+            }
             var allowed = new List<ListAction> { ListAction.KEEP };
 
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
@@ -239,13 +248,14 @@ namespace ListMaker
                 if (randomValue != 0) return ListAction.KEEP;
             }
 
-            if (remaningShift > 0)
+            if (remaningShift > 0 && BaseSize > 1)
             {
                 allowed.Add(ListAction.SHIFT);
             }
-            if (remaningRemove > 0)
+            if (remaningRemove > 0 && BaseSize > 1)
             {
                 allowed.Add(ListAction.REMOVE);
+                NextWillBeKeep = true;
             }
             if (remaningAdd > 0)
             {
