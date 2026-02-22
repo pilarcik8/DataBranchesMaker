@@ -184,19 +184,7 @@ namespace ListMaker
             else if (action == ListAction.SHIFT)
             {
                 int count = branchList.Count;
-
-                if (count <= 1)
-                {
-                    var msg = $"Cannot shift item '{item}' in a list with <= 1 element.\n";
-                    ChangeLogText += msg + "\n";
-                    return;
-                }
-
                 int currentIndex = branchList.IndexOf(item);
-                if (currentIndex < 0)
-                {
-                    throw new InvalidOperationException($"Item '{item}' not found in branch list - cannot shift.");
-                }
 
                 int targetIndex = Random.Shared.Next(count);
 
@@ -211,15 +199,13 @@ namespace ListMaker
                 branchList.Insert(insertIndex, item);
 
                 int baseIndex = baseList.IndexOf(item);
-                if (baseIndex >= 0 && baseList.Count > 1)
-                {
-                    int baseCount = baseList.Count;
-                    int baseTarget = Math.Min(targetIndex, baseCount - 1);
-                    baseList.RemoveAt(baseIndex);
-                    int baseInsert = baseTarget > baseIndex ? baseTarget - 1 : baseTarget;
-                    baseInsert = Math.Clamp(baseInsert, 0, baseList.Count);
-                    baseList.Insert(baseInsert, item);
-                }
+
+                int baseCount = baseList.Count;
+                int baseTarget = Math.Min(targetIndex, baseCount - 1);
+                baseList.RemoveAt(baseIndex);
+                int baseInsert = baseTarget > baseIndex ? baseTarget - 1 : baseTarget;
+                baseInsert = Math.Clamp(baseInsert, 0, baseList.Count);
+                baseList.Insert(baseInsert, item);                
 
                 ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}\n";
                 MadeShifts++;
