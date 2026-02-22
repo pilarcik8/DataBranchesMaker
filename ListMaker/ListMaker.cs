@@ -114,7 +114,7 @@ namespace ListMaker
                     {
                         message = "L, B:";
                         ChangeLogText += message + "\n";
-                        ExecuteAction(leftList, baseList, item, rightAct, faker, iteration);
+                        ExecuteAction(leftList, baseList, item, leftAct, faker, iteration);
 
                     }
                     else
@@ -137,14 +137,13 @@ namespace ListMaker
 
         private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)
         {
-            string message = "";
             if (action == ListAction.KEEP)
             {
-                message = $"Keeping item: {item}";
+                ChangeLogText += $"Keeping item: {item}\n";
             }
             else if (action == ListAction.REMOVE)
             {
-                message = $"Removing item: {item}";
+                ChangeLogText += $"Removing item: {item}\n";
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -161,7 +160,7 @@ namespace ListMaker
                 int currentIndex = branchList.IndexOf(item);
                 if (currentIndex < 0)
                 {
-                    throw new InvalidOperationException($"Item '{item}' not found in branch list - cannot insert relative to it.");
+                    throw new InvalidOperationException($"Item '{item}' not found in branch list - cannot insert relative to it.\n");
                 }
 
                 branchList.Insert(currentIndex, newItem);
@@ -176,7 +175,7 @@ namespace ListMaker
                     baseList.Add(newItem);
                 }
 
-                message = $"Adding item: {newItem} at index {currentIndex}";
+                ChangeLogText += $"Adding item: {newItem} at index {currentIndex}\n";
                 MadeAdditions++;
             }
             else if (action == ListAction.SHIFT)
@@ -185,7 +184,7 @@ namespace ListMaker
 
                 if (count <= 1)
                 {
-                    var msg = $"Cannot shift item '{item}' in a list with <= 1 element.";
+                    var msg = $"Cannot shift item '{item}' in a list with <= 1 element.\n";
                     ChangeLogText += msg + "\n";
                     return;
                 }
@@ -219,11 +218,9 @@ namespace ListMaker
                     baseList.Insert(baseInsert, item);
                 }
 
-                message = $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}";
+                ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}\n";
                 MadeShifts++;
             }
-
-            ChangeLogText += message + "\n";
         }
 
         public static ListAction GetAction()
