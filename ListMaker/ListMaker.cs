@@ -35,6 +35,11 @@ namespace ListMaker
         public static int BaseSize;
         public static bool NextWillBeKeep = false;
 
+        public static List<string> ResultList;
+        public static List<string> RightList;
+        public static List<string> LeftList;
+        public static List<string> BaseList;
+
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize)
         {
             MinResultSize = minResultSize;
@@ -66,29 +71,29 @@ namespace ListMaker
 
                 int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
-                var resultList = new List<string>();
+                ResultList = new List<string>();
 
-                while (resultList.Count < targetCount)
+                while (ResultList.Count < targetCount)
                 {
                     string value = faker.Random.Word();
-                    if (!resultList.Contains(value))
+                    if (!ResultList.Contains(value))
                     {
-                        resultList.Add(value);
+                        ResultList.Add(value);
                     }
                 }
 
-                var rightList = new List<string>(resultList);
-                var leftList = new List<string>(resultList);
-                var baseList = new List<string>(resultList);
+                RightList = new List<string>(ResultList);
+                LeftList = new List<string>(ResultList);
+                BaseList = new List<string>(ResultList);
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
                 ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
-                foreach (string item in resultList)
+                foreach (string item in ResultList)
                 {
                     ListAction leftAct, rightAct;
-                    BaseSize = baseList.Count;
+                    BaseSize = BaseList.Count;
                     string message;
                     if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
@@ -105,19 +110,19 @@ namespace ListMaker
                     {
                         message = "L, R, B:";
                         ChangeLogText += message + "\n";
-                        ExecuteAction(rightList, baseList, item, rightAct, faker, iteration);
+                        ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == ListAction.KEEP)
                     {
                         message = "R, B:";
                         ChangeLogText += message + "\n";
-                        ExecuteAction(rightList, baseList, item, rightAct, faker, iteration);
+                        ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
                     else if (rightAct == ListAction.KEEP)
                     {
                         message = "L, B:";
                         ChangeLogText += message + "\n";
-                        ExecuteAction(leftList, baseList, item, leftAct, faker, iteration);
+                        ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
 
                     }
                     else
@@ -127,10 +132,10 @@ namespace ListMaker
                     }
                 }
 
-                XMLOutput.Export(leftList, "left", iteration, OutputDirectory);
-                XMLOutput.Export(rightList, "right", iteration, OutputDirectory);
-                XMLOutput.Export(baseList, "base", iteration, OutputDirectory);
-                XMLOutput.Export(resultList, "expectedResult", iteration, OutputDirectory);
+                XMLOutput.Export(LeftList, "left", iteration, OutputDirectory);
+                XMLOutput.Export(RightList, "right", iteration, OutputDirectory);
+                XMLOutput.Export(BaseList, "base", iteration, OutputDirectory);
+                XMLOutput.Export(ResultList, "expectedResult", iteration, OutputDirectory);
 
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
@@ -155,7 +160,8 @@ namespace ListMaker
             else if (action == ListAction.ADD)
             {
                 string newItem = faker.Random.Word();
-                while (branchList.Contains(newItem))
+                // Hladaj uplne nove slovo
+                while (BaseList.Contains(newItem) || LeftList.Contains(newItem) || RightList.Contains(newItem) || ResultList.Contains(newItem))
                 {
                     newItem = faker.Random.Word();
                 }
@@ -205,7 +211,7 @@ namespace ListMaker
                 baseList.RemoveAt(baseIndex);
                 int baseInsert = baseTarget > baseIndex ? baseTarget - 1 : baseTarget;
                 baseInsert = Math.Clamp(baseInsert, 0, baseList.Count);
-                baseList.Insert(baseInsert, item);                
+                baseList.Insert(baseInsert, item);
 
                 ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}\n";
                 MadeShifts++;

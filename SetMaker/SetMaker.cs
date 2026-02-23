@@ -26,6 +26,10 @@ namespace SetMaker
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
         public static string ChangeLogText = "";
+        public static HashSet<string> BaseSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        public static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        public static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        public static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
 
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize)
@@ -56,16 +60,16 @@ namespace SetMaker
                 ChangeLogText = string.Empty;
                 int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
-                var resultSet = MakeResultSet(targetCount, faker);
-                var rightSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
-                var leftSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
-                var baseSet = new HashSet<string>(resultSet, StringComparer.Ordinal);
+                ResultSet = MakeResultSet(targetCount, faker);
+                RightSet = new HashSet<string>(ResultSet, StringComparer.Ordinal);
+                LeftSet = new HashSet<string>(ResultSet, StringComparer.Ordinal);
+                BaseSet = new HashSet<string>(ResultSet, StringComparer.Ordinal);
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
                 ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
-                foreach (string item in resultSet)
+                foreach (string item in ResultSet)
                 {
                     SetAction leftAct, rightAct;
                     if (Random.Shared.NextDouble() > leftKeepProbability)
@@ -82,17 +86,17 @@ namespace SetMaker
                     if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Left, Right and Base\n";
-                        ExecuteAction(rightSet, baseSet, item, rightAct, faker, iteration);
+                        ExecuteAction(RightSet, BaseSet, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Right and Base\n";
-                        ExecuteAction(rightSet, baseSet, item, rightAct, faker, iteration);
+                        ExecuteAction(RightSet, BaseSet, item, rightAct, faker, iteration);
                     }
                     else if (rightAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Left and Base\n";
-                        ExecuteAction(leftSet, baseSet, item, leftAct, faker, iteration);
+                        ExecuteAction(LeftSet, BaseSet, item, leftAct, faker, iteration);
                     }
                     else
                     {
@@ -101,10 +105,10 @@ namespace SetMaker
                     }
                 }
 
-                XMLOutput.Export(leftSet, "left", iteration, OutputDirectory);
-                XMLOutput.Export(rightSet, "right", iteration, OutputDirectory);
-                XMLOutput.Export(baseSet, "base", iteration, OutputDirectory);
-                XMLOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
+                XMLOutput.Export(LeftSet, "left", iteration, OutputDirectory);
+                XMLOutput.Export(RightSet, "right", iteration, OutputDirectory);
+                XMLOutput.Export(BaseSet, "base", iteration, OutputDirectory);
+                XMLOutput.Export(ResultSet, "expectedResult", iteration, OutputDirectory);
 
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
@@ -139,7 +143,7 @@ namespace SetMaker
             else if (action == SetAction.ADD)
             {
                 string newItem = faker.Random.Word();
-                while (branchSet.Contains(newItem))
+                while (BaseSet.Contains(newItem) || LeftSet.Contains(newItem) || RightSet.Contains(newItem) || ResultSet.Contains(newItem))
                 {
                     newItem = faker.Random.Word();
                 }
