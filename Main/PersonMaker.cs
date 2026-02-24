@@ -66,12 +66,12 @@ namespace PersonMaker
 
         public static void Main()
         {
-            MadeChanges = 0;
-            MadeRemovals = 0;
-            MadeAdditions = 0;
-
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
+                MadeChanges = 0;
+                MadeRemovals = 0;
+                MadeAdditions = 0;
+
                 ChangeLogText = string.Empty;
                 Console.WriteLine($"Iteration {iteration}:");
                 // Vytvorenie vyslednej osoby

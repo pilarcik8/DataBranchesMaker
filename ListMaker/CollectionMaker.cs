@@ -42,6 +42,7 @@ namespace CollectionMaker
 
         // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP, inak merger nerozozna poradie prvkov
         public static bool NextWillBeKeep = false;
+        public static List<int> indexesWhereHasToBeKeep = new List<int>();
 
         // True = List / False = Set
         public static bool OrderMatters = true;
@@ -73,12 +74,14 @@ namespace CollectionMaker
         public static void Main()
         {
             var faker = new Faker();
-            MadeAdditions = 0;
-            MadeRemovals = 0;
-            MadeShifts = 0;
+
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
+                MadeAdditions = 0;
+                MadeRemovals = 0;
+                MadeShifts = 0;
+
                 ChangeLogText = string.Empty;
 
                 int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
@@ -194,6 +197,8 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.REMOVE)
             {
+                NextWillBeKeep = true;
+
                 ChangeLogText += $"Removing item: {item}\n";
 
                 baseList.Remove(item);
@@ -204,7 +209,7 @@ namespace CollectionMaker
             {
                 string newItem = faker.Random.Word();
                 // Hladaj uplne nove slovo
-                while (BaseList.Contains(newItem) || LeftList.Contains(newItem) || RightList.Contains(newItem) || ResultList.Contains(newItem))
+                while (BaseList!.Contains(newItem) || LeftList!.Contains(newItem) || RightList!.Contains(newItem) || ResultList!.Contains(newItem))
                 {
                     newItem = faker.Random.Word();
                 }
@@ -285,8 +290,8 @@ namespace CollectionMaker
             {
                 // Shift je povolený len v prípade, že aktuálny element je na rovnakej pozícii
                 // inak by merger nerozoznal poradie prvkov
-                if (BaseList.IndexOf(ActualElement) == LeftList.IndexOf(ActualElement) && 
-                    RightList.IndexOf(ActualElement) == LeftList.IndexOf(ActualElement))
+                if (BaseList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement) && 
+                    RightList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement))
                 {
                     // Shift je povolený len v prípade, že aktuálny element nie je posledný v Listoch
                     // kód na exekúciu shiftu by totiž posúva elementy iba z hora dole, nikdy z dola nahor
@@ -299,7 +304,6 @@ namespace CollectionMaker
             if (remaningRemove > 0)
             {
                 allowed.Add(ElementAction.REMOVE);
-                NextWillBeKeep = true;
             }
             if (remaningAdd > 0)
             {
