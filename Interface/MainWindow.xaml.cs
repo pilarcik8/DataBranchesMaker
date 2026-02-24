@@ -78,9 +78,9 @@ namespace Interface
             // Set: Add + Remove
             if (isSet)
             {
+                // schopnosť zakliknúť Add a Remove necháme, ale Change a Shift zakážeme
                 AllowAddCheckBox.IsEnabled = true;
                 AllowRemoveCheckBox.IsEnabled = true;
-
                 AllowChangeCheckBox.IsEnabled = false;
                 AllowShiftCheckBox.IsEnabled = false;
 
@@ -90,19 +90,19 @@ namespace Interface
                 AllowChangeCheckBox.IsChecked = false;
                 AllowShiftCheckBox.IsChecked = false;
             }
-            // List: Add, Remove, Change, Shift
+            // List: Add, Change, Shift
             else if (isList)
             {
                 AllowAddCheckBox.IsEnabled = true;
                 AllowRemoveCheckBox.IsEnabled = true;
-                AllowChangeCheckBox.IsEnabled = true;
+                AllowChangeCheckBox.IsEnabled = false;
                 AllowShiftCheckBox.IsEnabled = true;
 
-                // na začiatku true, ale ak už používateľ odklikol a zmenil výber, nech to nezruší
                 if (AllowAddCheckBox.IsChecked != true) AllowAddCheckBox.IsChecked = true;
                 if (AllowRemoveCheckBox.IsChecked != true) AllowRemoveCheckBox.IsChecked = true;
-                if (AllowChangeCheckBox.IsChecked != true) AllowChangeCheckBox.IsChecked = true;
                 if (AllowShiftCheckBox.IsChecked != true) AllowShiftCheckBox.IsChecked = true;
+
+                AllowChangeCheckBox.IsChecked = false;
             }
             // Class(Person): Add, Remove, Change
             else if (isClass)
