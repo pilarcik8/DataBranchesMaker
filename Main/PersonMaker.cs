@@ -142,16 +142,11 @@ namespace PersonMaker
             }
             else if (action == AtributeAction.CHANGE)
             {
-                //TODO: OPRAV kontrola originality hodnoty
-                string changeResponse = branchPerson.ChangeAttribute(i, faker);
+                string changeValue = branchPerson.ChangeAttribute(i, faker);
 
-                string[] parts = changeResponse.Split('|');
-                var change = parts[0];
-                var log = parts[1];
+                ChangeLogText += $"Changed attribute: '{branchPerson.GetAttributeName(i)}' to '{changeValue}'\n";
 
-                ChangeLogText += $"Changed attribute: '{branchPerson.GetAttributeName(i)}' to '{change}'\n";
-
-                basePerson.SetAttribute(i, change);
+                basePerson.SetAttribute(i, changeValue);
                 MadeChanges++;
             }
             else if (action == AtributeAction.REMOVE)
@@ -171,7 +166,6 @@ namespace PersonMaker
                 string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
                 ChangeLogText += $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'\n";
-                //TODO: OPRAV kontrola originality hodnoty
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
                 MadeAdditions++;
             }

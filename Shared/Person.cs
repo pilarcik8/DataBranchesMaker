@@ -349,7 +349,7 @@ namespace Shared
             }
             SetAttribute(i, newValue);
 
-            return newValue + $"|Changed attribute: '{GetAttributeName(i)}' from '{old}' to '{newValue}'";
+            return newValue;
         }
 
         public string? GetAttribute(int i)
