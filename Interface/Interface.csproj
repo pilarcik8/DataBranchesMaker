@@ -12,7 +12,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ListMaker\CollectionMaker.csproj" />
     <ProjectReference Include="..\Main\PersonMaker.csproj" />
-    <ProjectReference Include="..\SetMaker\SetMaker.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 

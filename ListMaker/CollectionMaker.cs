@@ -38,6 +38,8 @@ namespace CollectionMaker
         public static string ChangeLogText = "";
         public static int BaseSize;
 
+        public static string ActualElement = string.Empty;
+
         // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP, inak merger nerozozna poradie prvkov
         public static bool NextWillBeKeep = false;
 
@@ -102,6 +104,7 @@ namespace CollectionMaker
 
                 foreach (string item in ResultList)
                 {
+                    ActualElement = item;
                     ElementAction leftAct, rightAct;
                     BaseSize = BaseList.Count;
                     string message;
@@ -207,10 +210,6 @@ namespace CollectionMaker
                 }
 
                 int currentIndex = branchList.IndexOf(item);
-                if (currentIndex < 0)
-                {
-                    throw new InvalidOperationException($"Item '{item}' not found in branch list - cannot insert relative to it.\n");
-                }
 
                 branchList.Insert(currentIndex, newItem);
 
@@ -227,7 +226,7 @@ namespace CollectionMaker
                 if (OrderMatters)
                 {
                     ChangeLogText += $"Adding item: {newItem} at index {currentIndex}\n";
-                } 
+                }
                 else
                 {
                     ChangeLogText += $"Adding item: {newItem}\n";
@@ -237,32 +236,25 @@ namespace CollectionMaker
             else if (action == ElementAction.SHIFT)
             {
                 if (!OrderMatters) throw new InvalidOperationException("Cannot perform SHIFT action when order does not matter.");
-
-                int count = branchList.Count;
-                int currentIndex = branchList.IndexOf(item);
-
-                int targetIndex = Random.Shared.Next(count);
-
-                while (targetIndex == currentIndex)
+                
+                if (BaseList!.IndexOf(ActualElement) != LeftList!.IndexOf(ActualElement) && 
+                    RightList!.IndexOf(ActualElement) != LeftList!.IndexOf(ActualElement))
                 {
-                    targetIndex = Random.Shared.Next(count);
+                    throw new InvalidOperationException($"Cannot shift item '{item}' because it is not in the same position in all lists.\n");
                 }
 
-                branchList.RemoveAt(currentIndex);
-                int insertIndex = targetIndex > currentIndex ? targetIndex - 1 : targetIndex;
-                insertIndex = Math.Clamp(insertIndex, 0, branchList.Count);
-                branchList.Insert(insertIndex, item);
+                int currentIndex = branchList.IndexOf(item);
+                int newIndex = Random.Shared.Next(branchList.Count);
+                while (newIndex <= currentIndex)
+                {
+                    newIndex = Random.Shared.Next(branchList.Count);
+                }
+                branchList.Remove(item);
+                branchList.Insert(newIndex, item);
+                baseList.Remove(item);
+                baseList.Insert(newIndex, item);
 
-                int baseIndex = baseList.IndexOf(item);
-
-                int baseCount = baseList.Count;
-                int baseTarget = Math.Min(targetIndex, baseCount - 1);
-                baseList.RemoveAt(baseIndex);
-                int baseInsert = baseTarget > baseIndex ? baseTarget - 1 : baseTarget;
-                baseInsert = Math.Clamp(baseInsert, 0, baseList.Count);
-                baseList.Insert(baseInsert, item);
-
-                ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}\n";
+                ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {newIndex}\n";
                 MadeShifts++;
             }
         }
@@ -289,11 +281,22 @@ namespace CollectionMaker
                 if (randomValue != 0) return ElementAction.KEEP;
             }
 
-            if (remaningShift > 0 && BaseSize > 1)
+            if (remaningShift > 0)
             {
-                allowed.Add(ElementAction.SHIFT);
+                // Shift je povolený len v prípade, že aktuálny element je na rovnakej pozícii
+                // inak by merger nerozoznal poradie prvkov
+                if (BaseList.IndexOf(ActualElement) == LeftList.IndexOf(ActualElement) && 
+                    RightList.IndexOf(ActualElement) == LeftList.IndexOf(ActualElement))
+                {
+                    // Shift je povolený len v prípade, že aktuálny element nie je posledný v Listoch
+                    // kód na exekúciu shiftu by totiž posúva elementy iba z hora dole, nikdy z dola nahor
+                    if (BaseList.IndexOf(ActualElement) != BaseList.Count - 1)
+                    {
+                        allowed.Add(ElementAction.SHIFT);
+                    }
+                }
             }
-            if (remaningRemove > 0 && BaseSize > 1)
+            if (remaningRemove > 0)
             {
                 allowed.Add(ElementAction.REMOVE);
                 NextWillBeKeep = true;
