@@ -4,9 +4,9 @@ using System.Text;
 using Bogus;
 using Shared;
 
-namespace ListMaker
+namespace CollectionMaker
 {
-    public enum ListAction
+    public enum ElementAction
     {
         KEEP,
         REMOVE,
@@ -14,33 +14,42 @@ namespace ListMaker
         SHIFT
     }
 
-    public static class ListMaker
+    public static class CollectionMaker
     {
+        // Počet vykonaných akcií v iterácii, resetuje sa na začiatku každej iterácie
         private static int MadeRemovals = 0;
         private static int MadeAdditions = 0;
         private static int MadeShifts = 0;
 
         public static int Iterations { get; set; } = 5;
+        // Povolenie jednotlivých akcií
         public static bool AllowRemove { get; set; } = true;
         public static bool AllowAdd { get; set; } = true;
         public static bool AllowShift { get; set; } = true;
+        // Maximálny počet povolených akcií (globálne pre všetky iterácie)
         public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
         public static int MaxAllowedShifts { get; set; } = int.MaxValue;
+
+        // Veľkosť očakávaného výsledku (originálneho xml)
         public static int MaxResultSize { get; set; } = 10;
         public static int MinResultSize { get; set; } = 10;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
-
         public static string ChangeLogText = "";
         public static int BaseSize;
+
+        // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP, inak merger nerozozna poradie prvkov
         public static bool NextWillBeKeep = false;
 
-        public static List<string> ResultList;
-        public static List<string> RightList;
-        public static List<string> LeftList;
-        public static List<string> BaseList;
+        // True = List / False = Set
+        public static bool OrderMatters = true;
 
-        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize)
+        public static List<string>? ResultList;
+        public static List<string>? RightList;
+        public static List<string>? LeftList;
+        public static List<string>? BaseList;
+
+        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize, bool orderMatters)
         {
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
@@ -49,6 +58,7 @@ namespace ListMaker
             AllowAdd = addingAllowed;
             AllowShift = allowShifts;
             OutputDirectory = outputDirectory;
+            OrderMatters = orderMatters;
         }
 
         public static void SetAllowedMax(int maxRemovals, int maxAdditions, int maxShifts)
@@ -92,33 +102,33 @@ namespace ListMaker
 
                 foreach (string item in ResultList)
                 {
-                    ListAction leftAct, rightAct;
+                    ElementAction leftAct, rightAct;
                     BaseSize = BaseList.Count;
                     string message;
                     if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
-                        leftAct = ListAction.KEEP;
+                        leftAct = ElementAction.KEEP;
                         rightAct = GetAction();
                     }
                     else
                     {
                         leftAct = GetAction();
-                        rightAct = ListAction.KEEP;
+                        rightAct = ElementAction.KEEP;
                     }
 
-                    if (leftAct == ListAction.KEEP && rightAct == ListAction.KEEP)
+                    if (leftAct == ElementAction.KEEP && rightAct == ElementAction.KEEP)
                     {
                         message = "L, R, B:";
                         ChangeLogText += message + "\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
-                    else if (leftAct == ListAction.KEEP)
+                    else if (leftAct == ElementAction.KEEP)
                     {
                         message = "R, B:";
                         ChangeLogText += message + "\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
-                    else if (rightAct == ListAction.KEEP)
+                    else if (rightAct == ElementAction.KEEP)
                     {
                         message = "L, B:";
                         ChangeLogText += message + "\n";
@@ -132,24 +142,54 @@ namespace ListMaker
                     }
                 }
 
-                XMLOutput.Export(LeftList, "left", iteration, OutputDirectory);
-                XMLOutput.Export(RightList, "right", iteration, OutputDirectory);
-                XMLOutput.Export(BaseList, "base", iteration, OutputDirectory);
-                XMLOutput.Export(ResultList, "expectedResult", iteration, OutputDirectory);
+                // Export Listov do XML
+                if (OrderMatters)
+                {
+                    XMLOutput.Export(LeftList, "left", iteration, OutputDirectory);
+                    XMLOutput.Export(RightList, "right", iteration, OutputDirectory);
+                    XMLOutput.Export(BaseList, "base", iteration, OutputDirectory);
+                    XMLOutput.Export(ResultList, "expectedResult", iteration, OutputDirectory);
+                }
+                // Ak nezalezi na poradi, exportujeme ako sety
+                else
+                {
+                    HashSet<string> leftSet = new HashSet<string>(Shuffle(LeftList), StringComparer.Ordinal);
+                    HashSet<string> rightSet = new HashSet<string>(Shuffle(RightList), StringComparer.Ordinal);
+                    HashSet<string> baseSet = new HashSet<string>(Shuffle(BaseList), StringComparer.Ordinal);
+                    HashSet<string> resultSet = new HashSet<string>(Shuffle(ResultList), StringComparer.Ordinal);
 
+                    XMLOutput.Export(leftSet, "left", iteration, OutputDirectory);
+                    XMLOutput.Export(rightSet, "right", iteration, OutputDirectory);
+                    XMLOutput.Export(baseSet, "base", iteration, OutputDirectory);
+                    XMLOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
+                }
+                // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
         }
 
-        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)
+        // Fisher-Yates shuffle algoritmus pre náhodné premiešanie prvkov v liste
+        public static List<string> Shuffle(List<string> list)
         {
-            if (action == ListAction.KEEP)
+            if (OrderMatters) throw new InvalidOperationException("Cannot shuffle list when order matters.");
+
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = Random.Shared.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            return list;
+        }
+
+        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ElementAction action, Faker faker, int iteration)
+        {
+            if (action == ElementAction.KEEP)
             {
                 ChangeLogText += $"Keeping item: {item}\n";
             }
-            else if (action == ListAction.REMOVE)
+            else if (action == ElementAction.REMOVE)
             {
                 ChangeLogText += $"Removing item: {item}\n";
 
@@ -157,7 +197,7 @@ namespace ListMaker
                 branchList.Remove(item);
                 MadeRemovals++;
             }
-            else if (action == ListAction.ADD)
+            else if (action == ElementAction.ADD)
             {
                 string newItem = faker.Random.Word();
                 // Hladaj uplne nove slovo
@@ -184,11 +224,20 @@ namespace ListMaker
                     baseList.Add(newItem);
                 }
 
-                ChangeLogText += $"Adding item: {newItem} at index {currentIndex}\n";
+                if (OrderMatters)
+                {
+                    ChangeLogText += $"Adding item: {newItem} at index {currentIndex}\n";
+                } 
+                else
+                {
+                    ChangeLogText += $"Adding item: {newItem}\n";
+                }
                 MadeAdditions++;
             }
-            else if (action == ListAction.SHIFT)
+            else if (action == ElementAction.SHIFT)
             {
+                if (!OrderMatters) throw new InvalidOperationException("Cannot perform SHIFT action when order does not matter.");
+
                 int count = branchList.Count;
                 int currentIndex = branchList.IndexOf(item);
 
@@ -218,15 +267,15 @@ namespace ListMaker
             }
         }
 
-        public static ListAction GetAction()
+        public static ElementAction GetAction()
         {
             // ked nastane remove, dalsia akcia musi byt keep, inak merger nerozozna poradie prvkov
             if (NextWillBeKeep)
             {
                 NextWillBeKeep = false;
-                return ListAction.KEEP;
+                return ElementAction.KEEP;
             }
-            var allowed = new List<ListAction> { ListAction.KEEP };
+            var allowed = new List<ElementAction> { ElementAction.KEEP };
 
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningShift = AllowShift ? MaxAllowedShifts - MadeShifts : 0;
@@ -237,21 +286,21 @@ namespace ListMaker
             if (remainingModifications == 1)
             {
                 int randomValue = Random.Shared.Next(5);
-                if (randomValue != 0) return ListAction.KEEP;
+                if (randomValue != 0) return ElementAction.KEEP;
             }
 
             if (remaningShift > 0 && BaseSize > 1)
             {
-                allowed.Add(ListAction.SHIFT);
+                allowed.Add(ElementAction.SHIFT);
             }
             if (remaningRemove > 0 && BaseSize > 1)
             {
-                allowed.Add(ListAction.REMOVE);
+                allowed.Add(ElementAction.REMOVE);
                 NextWillBeKeep = true;
             }
             if (remaningAdd > 0)
             {
-                allowed.Add(ListAction.ADD);
+                allowed.Add(ElementAction.ADD);
             }
 
             int index = Random.Shared.Next(allowed.Count);
