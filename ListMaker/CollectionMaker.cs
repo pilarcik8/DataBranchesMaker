@@ -1,16 +1,19 @@
-﻿using System;
-using System.IO;
-using System.Text;
-using Bogus;
+﻿using Bogus;
+using Bogus.DataSets;
 using Shared;
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text;
 
 namespace CollectionMaker
 {
     public enum ElementAction
     {
         KEEP,
-        REMOVE,
-        ADD,
+        REMOVAL,
+        ADDITION,
         SHIFT
     }
 
@@ -36,21 +39,19 @@ namespace CollectionMaker
         public static int MinResultSize { get; set; } = 10;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
         public static string ChangeLogText = "";
-        public static int BaseSize;
 
         public static string ActualElement = string.Empty;
 
         // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP, inak merger nerozozna poradie prvkov
         public static bool NextWillBeKeep = false;
-        public static List<int> indexesWhereHasToBeKeep = new List<int>();
 
         // True = List / False = Set
         public static bool OrderMatters = true;
 
-        public static List<string>? ResultList;
-        public static List<string>? RightList;
-        public static List<string>? LeftList;
-        public static List<string>? BaseList;
+        public static List<string> ResultList = new List<string>();
+        public static List<string> RightList = new List<string>();
+        public static List<string> LeftList = new List<string>();
+        public static List<string> BaseList = new List<string>();
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize, bool orderMatters)
         {
@@ -78,38 +79,29 @@ namespace CollectionMaker
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
+                // Inicializácia
                 MadeAdditions = 0;
                 MadeRemovals = 0;
                 MadeShifts = 0;
 
                 ChangeLogText = string.Empty;
 
-                int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
+                int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
-                ResultList = new List<string>();
-
-                while (ResultList.Count < targetCount)
-                {
-                    string value = faker.Random.Word();
-                    if (!ResultList.Contains(value))
-                    {
-                        ResultList.Add(value);
-                    }
-                }
-
-                RightList = new List<string>(ResultList);
-                LeftList = new List<string>(ResultList);
-                BaseList = new List<string>(ResultList);
+                ResultList = CreateStartingList(faker, elementCount);
+                RightList = ResultList;
+                LeftList = ResultList;
+                BaseList = ResultList;
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
                 ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
-                foreach (string item in ResultList)
+                // Akcie sa vyberu a rovno vykonaju
+                foreach (string item in ResultList!)
                 {
                     ActualElement = item;
                     ElementAction leftAct, rightAct;
-                    BaseSize = BaseList.Count;
                     string message;
                     if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
@@ -176,6 +168,22 @@ namespace CollectionMaker
             }
         }
 
+        private static List<string> CreateStartingList(Faker faker, int elementCount)
+        {
+            var list = new List<string>();
+
+            while (ResultList!.Count < elementCount)
+            {
+                string value = faker.Random.Word();
+                if (!list.Contains(value))
+                {
+                    list.Add(value);
+                }
+            }
+
+            return list;
+        }
+
         // Fisher-Yates shuffle algoritmus pre náhodné premiešanie prvkov v liste
         public static List<string> Shuffle(List<string> list)
         {
@@ -191,46 +199,40 @@ namespace CollectionMaker
 
         private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ElementAction action, Faker faker, int iteration)
         {
+
             if (action == ElementAction.KEEP)
             {
                 ChangeLogText += $"Keeping item: {item}\n";
             }
-            else if (action == ElementAction.REMOVE)
+            else if (action == ElementAction.REMOVAL)
             {
-                NextWillBeKeep = true;
+                if (OrderMatters)
+                {
+                    NextWillBeKeep = true;
+                }
 
                 ChangeLogText += $"Removing item: {item}\n";
+                int baseIndex = baseList.IndexOf(item);
+                int branchIndex = branchList.IndexOf(item);
 
                 baseList.Remove(item);
                 branchList.Remove(item);
                 MadeRemovals++;
             }
-            else if (action == ElementAction.ADD)
+            else if (action == ElementAction.ADDITION)
             {
-                string newItem = faker.Random.Word();
-                // Hladaj uplne nove slovo
-                while (BaseList!.Contains(newItem) || LeftList!.Contains(newItem) || RightList!.Contains(newItem) || ResultList!.Contains(newItem))
-                {
-                    newItem = faker.Random.Word();
-                }
 
-                int currentIndex = branchList.IndexOf(item);
+                string newItem = GetNewDistinctWord(faker);
 
-                branchList.Insert(currentIndex, newItem);
+                int branchIndex = branchList.IndexOf(item);
+                branchList.Insert(branchIndex, newItem);
 
                 int baseIndex = baseList.IndexOf(item);
-                if (baseIndex >= 0)
-                {
-                    baseList.Insert(baseIndex, newItem);
-                }
-                else
-                {
-                    baseList.Add(newItem);
-                }
+                baseList.Insert(baseIndex, newItem);
 
                 if (OrderMatters)
                 {
-                    ChangeLogText += $"Adding item: {newItem} at index {currentIndex}\n";
+                    ChangeLogText += $"Adding item: {newItem} at index {branchIndex}\n";
                 }
                 else
                 {
@@ -240,78 +242,152 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.SHIFT)
             {
-                if (!OrderMatters) throw new InvalidOperationException("Cannot perform SHIFT action when order does not matter.");
-                
-                if (BaseList!.IndexOf(ActualElement) != LeftList!.IndexOf(ActualElement) && 
-                    RightList!.IndexOf(ActualElement) != LeftList!.IndexOf(ActualElement))
-                {
-                    throw new InvalidOperationException($"Cannot shift item '{item}' because it is not in the same position in all lists.\n");
-                }
-
                 int currentIndex = branchList.IndexOf(item);
-                int newIndex = Random.Shared.Next(branchList.Count);
-                while (newIndex <= currentIndex)
-                {
-                    newIndex = Random.Shared.Next(branchList.Count);
-                }
-                branchList.Remove(item);
-                branchList.Insert(newIndex, item);
-                baseList.Remove(item);
-                baseList.Insert(newIndex, item);
+                int remaining = branchList.Count - currentIndex - 1;
 
-                ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {newIndex}\n";
+                // vyber najmensi target z 3 cisel 
+                var rnd = Random.Shared;
+                int newIndex;
+                if (remaining == 1)
+                {
+                    newIndex = currentIndex + 1;
+                }
+                else
+                {
+                    int minCandidate = int.MaxValue;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        int candidate = currentIndex + 1 + rnd.Next(remaining); //(currentIndex + 1..Count - 1)
+                        if (candidate < minCandidate) minCandidate = candidate;
+                    }
+                    newIndex = minCandidate;
+                }
+
+                // Remove then insert; adjust insertion position because removal shifts indices.
+                branchList.RemoveAt(currentIndex);
+                int insertIndex = newIndex > currentIndex ? newIndex - 1 : newIndex;
+                branchList.Insert(insertIndex, item);
+
+                int baseCurrentIndex = baseList.IndexOf(item);
+                if (baseCurrentIndex >= 0)
+                {
+                    baseList.RemoveAt(baseCurrentIndex);
+                    int baseInsertIndex = insertIndex;
+                    baseList.Insert(baseInsertIndex, item);
+                }
+                ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}\n";
                 MadeShifts++;
             }
+        }
+
+        private static string GetNewDistinctWord(Faker faker)
+        {
+            var word = faker.Random.Word();
+
+            while (BaseList!.Contains(word) || LeftList!.Contains(word) || RightList!.Contains(word) || ResultList!.Contains(word))
+            {
+                word = faker.Random.Word();
+            }
+
+            return word;
         }
 
         public static ElementAction GetAction()
         {
             // ked nastane remove, dalsia akcia musi byt keep, inak merger nerozozna poradie prvkov
+            if (ShouldNextActionBeKeep())
+            {
+                return ElementAction.KEEP;
+            }
+
+            var allowed = new List<ElementAction> {};
+
+            if (CanBeActionExecuted(ElementAction.SHIFT))
+            {
+                allowed.Add(ElementAction.SHIFT);
+
+            }
+            if (CanBeActionExecuted(ElementAction.REMOVAL))
+            {
+                allowed.Add(ElementAction.REMOVAL);
+            }
+            if (CanBeActionExecuted(ElementAction.ADDITION))
+            {
+                allowed.Add(ElementAction.ADDITION);
+            }
+
+            // vyber náhodnú akciu z povolených, alebo KEEP ak žiadna modifikácia není povolená
+            return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ElementAction.KEEP;
+        }
+
+        public static int GetRemainingActions(ElementAction action)
+        {
+            return action switch
+            {
+                ElementAction.ADDITION => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
+                ElementAction.REMOVAL => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
+                ElementAction.SHIFT => AllowShift ? MaxAllowedShifts - MadeShifts : 0,
+                ElementAction.KEEP => int.MaxValue, // Keep není omezený, protože není modifikací
+                _ => throw new InvalidOperationException($"Unexpected action: {action}")
+            };
+        }
+
+        public static bool CanBeActionExecuted(ElementAction action)
+        {
+            if (GetRemainingActions(action) == 0) return false;
+
+            // Shift je povolený jen ak všechny 3 listy mají aktuální element na stejné pozici
+            // + není posledný prvok
+            if (action == ElementAction.SHIFT)
+            {
+                if (!OrderMatters) return false;
+
+                if (BaseList!.Count - 1 != BaseList!.IndexOf(ActualElement)) // ak true u base tak v poslednej podmienke uvidime či u všetkých true
+
+                return BaseList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement) &&
+                       RightList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement);
+            }
+
+            return true;
+        }
+
+        public static bool ShouldNextActionBeKeep()
+        {
+            // Ak nastane REMOVE, ďalšia akcia musí být KEEP, jinak merger nerozozna pořadí prvků
             if (NextWillBeKeep)
             {
                 NextWillBeKeep = false;
-                return ElementAction.KEEP;
+                return true;
             }
-            var allowed = new List<ElementAction> { ElementAction.KEEP };
 
-            int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
-            int remaningShift = AllowShift ? MaxAllowedShifts - MadeShifts : 0;
-            int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
+            int remaningAdd = GetRemainingActions(ElementAction.ADDITION);
+            int remaningShift = GetRemainingActions(ElementAction.SHIFT);
+            int remaningRemove = GetRemainingActions(ElementAction.REMOVAL);
 
             int remainingModifications = remaningAdd + remaningShift + remaningRemove;
 
+            // Ak zostáva len jedna možná modifikácia, znížime pravdepodobnosť jej výberu
+            // dôvod: ak napr. testujem či akcia funguje a teda Max operacie dam 1, nechem aby sa vykonala hned na zaciatku
             if (remainingModifications == 1)
             {
                 int randomValue = Random.Shared.Next(5);
-                if (randomValue != 0) return ElementAction.KEEP;
+                if (randomValue != 0) return true; // 80% že bude Keep 
             }
 
-            if (remaningShift > 0)
+            var allowed = new List<ElementAction> { ElementAction.KEEP };
+            if (remaningAdd > 0)
             {
-                // Shift je povolený len v prípade, že aktuálny element je na rovnakej pozícii
-                // inak by merger nerozoznal poradie prvkov
-                if (BaseList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement) && 
-                    RightList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement))
-                {
-                    // Shift je povolený len v prípade, že aktuálny element nie je posledný v Listoch
-                    // kód na exekúciu shiftu by totiž posúva elementy iba z hora dole, nikdy z dola nahor
-                    if (BaseList.IndexOf(ActualElement) != BaseList.Count - 1)
-                    {
-                        allowed.Add(ElementAction.SHIFT);
-                    }
-                }
+                allowed.Add(ElementAction.ADDITION);
             }
             if (remaningRemove > 0)
             {
-                allowed.Add(ElementAction.REMOVE);
+                allowed.Add(ElementAction.REMOVAL);
             }
-            if (remaningAdd > 0)
+            if (remaningShift > 0)
             {
-                allowed.Add(ElementAction.ADD);
+                allowed.Add(ElementAction.SHIFT);
             }
-
-            int index = Random.Shared.Next(allowed.Count);
-            return allowed[index];
+            return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
         }
     }
 }

@@ -29,10 +29,10 @@ namespace PersonMaker
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
 
         public static string ChangeLogText = "";
-        public static Person BasePerson { get; set; }
-        public static Person LeftPerson { get; set; }
-        public static Person RightPerson { get; set; }
-        public static Person ResultPerson { get; set; }
+        public static Person? BasePerson { get; set; }
+        public static Person? LeftPerson { get; set; }
+        public static Person? RightPerson { get; set; }
+        public static Person? ResultPerson { get; set; }
 
 
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
