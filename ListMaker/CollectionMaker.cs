@@ -1,10 +1,5 @@
 ﻿using Bogus;
-using Bogus.DataSets;
 using Shared;
-using System;
-using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace CollectionMaker
@@ -89,16 +84,17 @@ namespace CollectionMaker
                 int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
                 ResultList = CreateStartingList(faker, elementCount);
-                RightList = ResultList;
-                LeftList = ResultList;
-                BaseList = ResultList;
+                RightList = new List<string>(ResultList); 
+                LeftList = new List<string>(ResultList); 
+                BaseList = new List<string>(ResultList);
+                RightList = new List<string>(ResultList);
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
                 ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
                 // Akcie sa vyberu a rovno vykonaju
-                foreach (string item in ResultList!)
+                foreach (string item in ResultList)
                 {
                     ActualElement = item;
                     ElementAction leftAct, rightAct;
@@ -106,11 +102,11 @@ namespace CollectionMaker
                     if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
                         leftAct = ElementAction.KEEP;
-                        rightAct = GetAction();
+                        rightAct = GetAction(RightList);
                     }
                     else
                     {
-                        leftAct = GetAction();
+                        leftAct = GetAction(LeftList);
                         rightAct = ElementAction.KEEP;
                     }
 
@@ -132,11 +128,6 @@ namespace CollectionMaker
                         ChangeLogText += message + "\n";
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
 
-                    }
-                    else
-                    {
-                        Console.Error.WriteLine("Nezanama akcia");
-                        return;
                     }
                 }
 
@@ -172,7 +163,7 @@ namespace CollectionMaker
         {
             var list = new List<string>();
 
-            while (ResultList!.Count < elementCount)
+            while (list.Count < elementCount)
             {
                 string value = faker.Random.Word();
                 if (!list.Contains(value))
@@ -242,40 +233,33 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.SHIFT)
             {
-                int currentIndex = branchList.IndexOf(item);
-                int remaining = branchList.Count - currentIndex - 1;
+                int oldIndex = baseList.IndexOf(item);
 
-                // vyber najmensi target z 3 cisel 
-                var rnd = Random.Shared;
-                int newIndex;
-                if (remaining == 1)
+                // odstráň podľa indexu (očakávam že sú na rovnakej pozícii)
+                baseList.RemoveAt(oldIndex);
+                branchList.RemoveAt(oldIndex);
+
+                int maxShiftRange = baseList.Count - oldIndex;
+                if (maxShiftRange <= 0)
+                    return; // nič za tým už nie je
+
+                int minCandidate = int.MaxValue;
+
+                for (int i = 0; i < 3; i++)
                 {
-                    newIndex = currentIndex + 1;
-                }
-                else
-                {
-                    int minCandidate = int.MaxValue;
-                    for (int i = 0; i < 3; i++)
-                    {
-                        int candidate = currentIndex + 1 + rnd.Next(remaining); //(currentIndex + 1..Count - 1)
-                        if (candidate < minCandidate) minCandidate = candidate;
-                    }
-                    newIndex = minCandidate;
+                    int offset = Random.Shared.Next(1, maxShiftRange + 1);
+                    int candidate = oldIndex + offset;
+
+                    if (candidate < minCandidate)
+                        minCandidate = candidate;
                 }
 
-                // Remove then insert; adjust insertion position because removal shifts indices.
-                branchList.RemoveAt(currentIndex);
-                int insertIndex = newIndex > currentIndex ? newIndex - 1 : newIndex;
-                branchList.Insert(insertIndex, item);
+                int newIndex = minCandidate;
 
-                int baseCurrentIndex = baseList.IndexOf(item);
-                if (baseCurrentIndex >= 0)
-                {
-                    baseList.RemoveAt(baseCurrentIndex);
-                    int baseInsertIndex = insertIndex;
-                    baseList.Insert(baseInsertIndex, item);
-                }
-                ChangeLogText += $"Shifting item: '{item}' from index {currentIndex} to {insertIndex}\n";
+                branchList.Insert(newIndex, item);
+                baseList.Insert(newIndex, item);
+
+                ChangeLogText += $"Shifting item: '{item}' from index {oldIndex} to {newIndex}\n";
                 MadeShifts++;
             }
         }
@@ -284,7 +268,7 @@ namespace CollectionMaker
         {
             var word = faker.Random.Word();
 
-            while (BaseList!.Contains(word) || LeftList!.Contains(word) || RightList!.Contains(word) || ResultList!.Contains(word))
+            while (BaseList.Contains(word) || LeftList.Contains(word) || RightList.Contains(word) || ResultList.Contains(word))
             {
                 word = faker.Random.Word();
             }
@@ -292,7 +276,7 @@ namespace CollectionMaker
             return word;
         }
 
-        public static ElementAction GetAction()
+        public static ElementAction GetAction(List<string> branchList)
         {
             // ked nastane remove, dalsia akcia musi byt keep, inak merger nerozozna poradie prvkov
             if (ShouldNextActionBeKeep())
@@ -302,16 +286,16 @@ namespace CollectionMaker
 
             var allowed = new List<ElementAction> {};
 
-            if (CanBeActionExecuted(ElementAction.SHIFT))
+            if (CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList))
             {
                 allowed.Add(ElementAction.SHIFT);
 
             }
-            if (CanBeActionExecuted(ElementAction.REMOVAL))
+            if (CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList))
             {
                 allowed.Add(ElementAction.REMOVAL);
             }
-            if (CanBeActionExecuted(ElementAction.ADDITION))
+            if (CanBeActionExecuted(ElementAction.ADDITION, BaseList, branchList))
             {
                 allowed.Add(ElementAction.ADDITION);
             }
@@ -332,20 +316,20 @@ namespace CollectionMaker
             };
         }
 
-        public static bool CanBeActionExecuted(ElementAction action)
+        public static bool CanBeActionExecuted(ElementAction action, List<string> branch1, List<string> branch2)
         {
-            if (GetRemainingActions(action) == 0) return false;
+            if (GetRemainingActions(action) == 0)
+            {
+                return false;
+            }
 
-            // Shift je povolený jen ak všechny 3 listy mají aktuální element na stejné pozici
-            // + není posledný prvok
             if (action == ElementAction.SHIFT)
             {
-                if (!OrderMatters) return false;
+                // je posledny element?
+                if (branch1.IndexOf(ActualElement) >= branch1.Count - 2 || branch2.IndexOf(ActualElement) >= branch2.Count - 2) return false;
 
-                if (BaseList!.Count - 1 != BaseList!.IndexOf(ActualElement)) // ak true u base tak v poslednej podmienke uvidime či u všetkých true
-
-                return BaseList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement) &&
-                       RightList!.IndexOf(ActualElement) == LeftList!.IndexOf(ActualElement);
+                // rovnaka pozicia v listoch?
+                if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
             }
 
             return true;
