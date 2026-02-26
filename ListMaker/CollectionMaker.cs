@@ -1,6 +1,9 @@
 ﻿using Bogus;
+using Microsoft.VisualBasic;
 using Shared;
 using System.Text;
+using System.Text.RegularExpressions;
+using System.Xml.Serialization;
 
 namespace CollectionMaker
 {
@@ -71,7 +74,8 @@ namespace CollectionMaker
         {
             var faker = new Faker();
 
-
+            StartTest(faker);
+            return;
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 // Inicializácia
@@ -102,11 +106,11 @@ namespace CollectionMaker
                     if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
                         leftAct = ElementAction.KEEP;
-                        rightAct = GetAction(RightList);
+                        rightAct = ChooseAction(RightList);
                     }
                     else
                     {
-                        leftAct = GetAction(LeftList);
+                        leftAct = ChooseAction(LeftList);
                         rightAct = ElementAction.KEEP;
                     }
 
@@ -190,10 +194,9 @@ namespace CollectionMaker
 
         private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ElementAction action, Faker faker, int iteration)
         {
-
             if (action == ElementAction.KEEP)
             {
-                ChangeLogText += $"Keeping item: {item}\n";
+                ChangeLogText += $"Keeping item: '{item}'\n";
             }
             else if (action == ElementAction.REMOVAL)
             {
@@ -202,7 +205,7 @@ namespace CollectionMaker
                     NextWillBeKeep = true;
                 }
 
-                ChangeLogText += $"Removing item: {item}\n";
+                ChangeLogText += $"Removing item: '{item}'\n";
                 int baseIndex = baseList.IndexOf(item);
                 int branchIndex = branchList.IndexOf(item);
 
@@ -223,16 +226,16 @@ namespace CollectionMaker
 
                 if (OrderMatters)
                 {
-                    ChangeLogText += $"Adding item: {newItem} at index {branchIndex}\n";
+                    ChangeLogText += $"Adding item: '{newItem}' at index '{branchIndex}'\n";
                 }
                 else
                 {
-                    ChangeLogText += $"Adding item: {newItem}\n";
+                    ChangeLogText += $"Adding item: '{newItem}'\n";
                 }
                 MadeAdditions++;
             }
             else if (action == ElementAction.SHIFT)
-            {
+            {                
                 int oldIndex = baseList.IndexOf(item);
 
                 // odstráň podľa indexu (očakávam že sú na rovnakej pozícii)
@@ -246,8 +249,8 @@ namespace CollectionMaker
                 //      - potrebujeme aby L R a B pozicie boli rovnaké čo nastava až po indexe novej pozicie posledneho Shiftu
                 if (GetRemainingActions(ElementAction.REMOVAL) == 0 && GetRemainingActions(ElementAction.ADDITION) == 0)
                 {
-                    if (maxShiftRange > 10) {
-                        maxShiftRange = 10;
+                    if (maxShiftRange > 15) {
+                        maxShiftRange = 15;
                     }
                 }
 
@@ -266,7 +269,7 @@ namespace CollectionMaker
                 branchList.Insert(newIndex, item);
                 baseList.Insert(newIndex, item);
 
-                ChangeLogText += $"Shifting item: '{item}' from index {oldIndex} to {newIndex}\n";
+                ChangeLogText += $"Shifting item: '{item}' from index {oldIndex} to '{newIndex}'\n";
                 MadeShifts++;
             }
         }
@@ -283,7 +286,7 @@ namespace CollectionMaker
             return word;
         }
 
-        public static ElementAction GetAction(List<string> branchList)
+        public static ElementAction ChooseAction(List<string> branchList)
         {
             // ked nastane remove, dalsia akcia musi byt keep, inak merger nerozozna poradie prvkov
             if (ShouldNextActionBeKeep())
@@ -295,7 +298,9 @@ namespace CollectionMaker
 
             if (CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList))
             {
-                allowed.Add(ElementAction.SHIFT);
+                // Shift nastáva iba pri rovnakých pozíciách v L, R a B
+                // príležitosť je preto príliš vzácná, že keď sa naskytne, chceme ju využiť
+                return ElementAction.SHIFT;
 
             }
             if (CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList))
@@ -379,6 +384,140 @@ namespace CollectionMaker
                 allowed.Add(ElementAction.SHIFT);
             }
             return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
+        }
+
+        // METODY PRE TESTOVANIE
+        private static void StartTest(Faker faker)
+        {
+            Console.WriteLine("Zadaj cestu k expectedResult súboru");
+            string filePath = Console.ReadLine().Trim('"');
+
+            while (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+            {
+                Console.WriteLine("Súbor neexistuje, skúste znova");
+                filePath = Console.ReadLine().Trim('"');
+            }
+
+            List<string> expectedResult = CreateListFromXml(filePath);
+            if (expectedResult.Count == 0)
+            {
+                Console.WriteLine("Bud prázdny alebo nie validný xml súbor - list/set so stringami");
+                return;
+            }
+
+            var rightList = new List<string>(expectedResult);
+            var leftList = new List<string>(expectedResult);
+            var baseList = new List<string>(expectedResult);
+
+            Console.WriteLine("Zadajte cestu k changeLog súboru");
+            string changeLogPath = Console.ReadLine().Trim('"');
+
+            while (string.IsNullOrWhiteSpace(changeLogPath) || !File.Exists(changeLogPath))
+            {
+                Console.WriteLine("Súbor neexistuje, skúste znova");
+                changeLogPath = Console.ReadLine().Trim('"');
+            }
+
+            string[] changeLogLines = File.ReadAllLines(changeLogPath, Encoding.UTF8);
+            string nextBranch = "";
+            for (int line = 1; line < changeLogLines.Length; line+=2)
+            {
+                List<string> branchList;
+
+                if (changeLogLines[line].Trim() == "L, R, B:") 
+                {
+                    continue;
+                }
+                else if (changeLogLines[line].Trim() == "L, B:")
+                {
+                    branchList = leftList;
+                }
+                else if (changeLogLines[line].Trim() == "R, B:")
+                {
+                    branchList = rightList;
+                }
+                else
+                {
+                    throw new Exception("Problem s citanim vetvi");
+                }
+
+                string actionText = changeLogLines[line + 1].Trim();
+                if (actionText.Contains("Keeping"))
+                {
+                    continue;
+                }
+                else if (actionText.Contains("Removing"))
+                {
+                    Match match = Regex.Match(actionText, @"Removing item:\s*'([^']+)'");
+
+                    if (!match.Success) throw new Exception("Nenajdena hodnota pri Remove");
+
+                    string item = match.Groups[1].Value;
+
+                    branchList.Remove(item);
+                    baseList.Remove(item);
+                }
+                else if (actionText.Contains("Shifting"))
+                {
+                    Match match = Regex.Match(actionText, @"Shifting item:\s*'([^']+)'.*to\s*'(\d+)'");
+
+                    if (!match.Success) throw new Exception("Nenajdena hodnota pri Shifting");
+
+                    string item = match.Groups[1].Value;
+                    int newIndex = int.Parse(match.Groups[2].Value);
+
+                    baseList.Remove(item);
+                    branchList.Remove(item);
+                    baseList.Insert(newIndex, item);
+                    branchList.Insert(newIndex, item);
+
+                }
+                else if (actionText.Contains("Adding"))
+                {
+                    Match match = Regex.Match(actionText, @"Adding item:\s*'([^']+)'\s*at index\s*'(\d+)'");
+
+                    if (!match.Success) throw new Exception("Nenajdena hodnota pri Adding");
+
+                    string newItem = match.Groups[1].Value;
+                    int index = int.Parse(match.Groups[2].Value);
+
+                    baseList.Insert(index, newItem);
+                    branchList.Insert(index, newItem);
+                }
+                else
+                {
+                    throw new Exception("Neznama akcia v changelogu alebo chyba pri citani");
+                }
+            }
+            XMLOutput.Export(leftList, "left", 69, OutputDirectory);
+            XMLOutput.Export(rightList, "right", 69, OutputDirectory);
+            XMLOutput.Export(baseList, "base", 69, OutputDirectory);
+        }
+
+        public static List<string> CreateListFromXml(string xmlPath)
+        {
+            if (string.IsNullOrWhiteSpace(xmlPath)) throw new ArgumentException("xmlPath is null or empty.", nameof(xmlPath));
+            if (!File.Exists(xmlPath)) throw new FileNotFoundException("XML file not found.", xmlPath);
+
+            string xml = File.ReadAllText(xmlPath, Encoding.UTF8);
+
+            // Try List<string>
+            try
+            {
+                var serializer = new XmlSerializer(typeof(List<string>));
+                using (var reader = new StringReader(xml))
+                {
+                    if (serializer.Deserialize(reader) is List<string> list)
+                    {
+                        return list;
+                    }
+                }
+                return new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
     }
 }
