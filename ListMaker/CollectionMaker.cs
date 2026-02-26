@@ -240,12 +240,19 @@ namespace CollectionMaker
                 branchList.RemoveAt(oldIndex);
 
                 int maxShiftRange = baseList.Count - oldIndex;
-                if (maxShiftRange <= 0)
-                    return; // nič za tým už nie je
+
+                // Ak už nejde previesť inú akciu ako Shift
+                // znížime rozsah, čo zvýši počet krát kedy shift bude
+                //      - potrebujeme aby L R a B pozicie boli rovnaké čo nastava až po indexe novej pozicie posledneho Shiftu
+                if (GetRemainingActions(ElementAction.REMOVAL) == 0 && GetRemainingActions(ElementAction.ADDITION) == 0)
+                {
+                    if (maxShiftRange > 10) {
+                        maxShiftRange = 10;
+                    }
+                }
 
                 int minCandidate = int.MaxValue;
-
-                for (int i = 0; i < 3; i++)
+                for (int t = 0; t < 3; t++)
                 {
                     int offset = Random.Shared.Next(1, maxShiftRange + 1);
                     int candidate = oldIndex + offset;
@@ -337,7 +344,7 @@ namespace CollectionMaker
 
         public static bool ShouldNextActionBeKeep()
         {
-            // Ak nastane REMOVE, ďalšia akcia musí být KEEP, jinak merger nerozozna pořadí prvků
+            // Ak nastane REMOVE, ďalšia akcia musí být KEEP, jinak merger nerozozna pořadí prvkov
             if (NextWillBeKeep)
             {
                 NextWillBeKeep = false;
