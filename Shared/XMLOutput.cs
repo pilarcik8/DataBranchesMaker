@@ -5,7 +5,7 @@ namespace Shared
 {
     public static class XMLOutput
     {
-        public static void Export(Object ob, string fileName, int iteration, string outputDir)
+        public static void Export(Object ob, string fileName, int? iteration, string outputDir)
         {
             if (ob is null)
             {
@@ -33,7 +33,10 @@ namespace Shared
             
             try
             {
-                outputDir = Path.Combine(outputDir, iteration.ToString());
+                if (iteration.HasValue)
+                {
+                    outputDir = Path.Combine(outputDir, iteration.ToString());
+                }
                 Directory.CreateDirectory(outputDir);
 
                 string xmlPath = Path.Combine(outputDir, $"{fileName}{iteration}.xml");

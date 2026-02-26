@@ -290,7 +290,7 @@ namespace Interface
                             maxShifts: listMaxShifts
                         );
 
-                        global::CollectionMaker.CollectionMaker.Main();
+                        global::CollectionMaker.CollectionMaker.Run();
 
                         StatusTextBlock.Text = $"Exported List<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;

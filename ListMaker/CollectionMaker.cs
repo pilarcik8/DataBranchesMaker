@@ -72,10 +72,13 @@ namespace CollectionMaker
 
         public static void Main()
         {
+            StartListOutputTest();
+        }
+
+        public static void Run() { 
             var faker = new Faker();
 
-            StartTest(faker);
-            return;
+            //return;
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 // Inicializácia
@@ -95,7 +98,13 @@ namespace CollectionMaker
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
+                ChangeLogText += $"Allowed Actions: ";
+                if (AllowRemove) ChangeLogText += "Remove ";
+                if (AllowAdd) ChangeLogText += "Add ";
+                if (AllowShift) ChangeLogText += "Shift ";
+                ChangeLogText += "\n";
+                ChangeLogText += $"Max Allowed Actions: Remove: {MaxAllowedRemovals}, Add: {MaxAllowedAdditions}, Shift: {MaxAllowedShifts}\n";
+                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n\n";
 
                 // Akcie sa vyberu a rovno vykonaju
                 foreach (string item in ResultList)
@@ -200,14 +209,18 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.REMOVAL)
             {
+                int baseIndex = baseList.IndexOf(item);
+                int branchIndex = branchList.IndexOf(item);
+
                 if (OrderMatters)
                 {
                     NextWillBeKeep = true;
+                    ChangeLogText += $"Removing item: '{item}' at base index: {baseIndex} and branch index: {branchIndex}\n";
                 }
-
-                ChangeLogText += $"Removing item: '{item}'\n";
-                int baseIndex = baseList.IndexOf(item);
-                int branchIndex = branchList.IndexOf(item);
+                else
+                {
+                    ChangeLogText += $"Removing item: '{item}'\n";
+                }
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -215,18 +228,17 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.ADDITION)
             {
-
                 string newItem = GetNewDistinctWord(faker);
-
-                int branchIndex = branchList.IndexOf(item);
-                branchList.Insert(branchIndex, newItem);
-
+                
+                int branchIndex = branchList.IndexOf(item);                
                 int baseIndex = baseList.IndexOf(item);
+
                 baseList.Insert(baseIndex, newItem);
+                branchList.Insert(branchIndex, newItem);
 
                 if (OrderMatters)
                 {
-                    ChangeLogText += $"Adding item: '{newItem}' at index '{branchIndex}'\n";
+                    ChangeLogText += $"Adding item: '{newItem}' at base index: '{baseIndex}' and branch index: '{branchIndex}'\n";
                 }
                 else
                 {
@@ -387,7 +399,7 @@ namespace CollectionMaker
         }
 
         // METODY PRE TESTOVANIE
-        private static void StartTest(Faker faker)
+        private static void StartListOutputTest()
         {
             Console.WriteLine("Zadaj cestu k expectedResult súboru");
             string filePath = Console.ReadLine().Trim('"');
@@ -419,8 +431,8 @@ namespace CollectionMaker
             }
 
             string[] changeLogLines = File.ReadAllLines(changeLogPath, Encoding.UTF8);
-            string nextBranch = "";
-            for (int line = 1; line < changeLogLines.Length; line+=2)
+
+            for (int line = 4; line < changeLogLines.Length; line+=2)
             {
                 List<string> branchList;
 
@@ -474,27 +486,28 @@ namespace CollectionMaker
                 }
                 else if (actionText.Contains("Adding"))
                 {
-                    Match match = Regex.Match(actionText, @"Adding item:\s*'([^']+)'\s*at index\s*'(\d+)'");
+                    Match match = Regex.Match(actionText, @"Adding item:\s*'([^']+)'.*base index:\s*'(\d+)'.*branch index:\s*'(\d+)'");
 
                     if (!match.Success) throw new Exception("Nenajdena hodnota pri Adding");
 
                     string newItem = match.Groups[1].Value;
-                    int index = int.Parse(match.Groups[2].Value);
+                    int baseIndex = int.Parse(match.Groups[2].Value);
+                    int branchIndex = int.Parse(match.Groups[3].Value);
 
-                    baseList.Insert(index, newItem);
-                    branchList.Insert(index, newItem);
+                    baseList.Insert(baseIndex, newItem);
+                    branchList.Insert(branchIndex, newItem);
                 }
                 else
                 {
                     throw new Exception("Neznama akcia v changelogu alebo chyba pri citani");
                 }
             }
-            XMLOutput.Export(leftList, "left", 69, OutputDirectory);
-            XMLOutput.Export(rightList, "right", 69, OutputDirectory);
-            XMLOutput.Export(baseList, "base", 69, OutputDirectory);
+            XMLOutput.Export(leftList, "left", null, OutputDirectory);
+            XMLOutput.Export(rightList, "right", null, OutputDirectory);
+            XMLOutput.Export(baseList, "base", null, OutputDirectory);
         }
 
-        public static List<string> CreateListFromXml(string xmlPath)
+        private static List<string> CreateListFromXml(string xmlPath)
         {
             if (string.IsNullOrWhiteSpace(xmlPath)) throw new ArgumentException("xmlPath is null or empty.", nameof(xmlPath));
             if (!File.Exists(xmlPath)) throw new FileNotFoundException("XML file not found.", xmlPath);
