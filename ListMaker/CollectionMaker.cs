@@ -247,7 +247,50 @@ namespace CollectionMaker
                 MadeAdditions++;
             }
             else if (action == ElementAction.SHIFT)
-            {                
+            {
+                int index = baseList.IndexOf(item);
+
+                var otherBranch = branchList == LeftList ? RightList : LeftList;
+
+                int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count);
+                var rnd = Random.Shared.Next(index + 1, top);
+                bool found = false;
+
+                int attempts = 0;
+                while (baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd])
+                {
+                    if (attempts == 20) break;
+    
+                    rnd = Random.Shared.Next(index + 1, top);
+                    attempts++;
+                }
+                if (attempts == 20)
+                {
+                    for (int i = index + 1; i < top; i++)
+                    {
+                        if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i])
+                        {
+                            rnd = i;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    found = true;
+                }
+
+                if (!found) throw new Exception("not found index to land on Shift");
+
+                baseList.Remove(item);
+                branchList.Remove(item);
+                baseList.Insert(rnd, item);
+                branchList.Insert(rnd, item);
+
+                ChangeLogText += $"Shifting item: '{item}' from index {index} to '{rnd}'\n";
+
+                /*
                 int oldIndex = baseList.IndexOf(item);
 
                 // odstráň podľa indexu (očakávam že sú na rovnakej pozícii)
@@ -282,7 +325,7 @@ namespace CollectionMaker
                 baseList.Insert(newIndex, item);
 
                 ChangeLogText += $"Shifting item: '{item}' from index {oldIndex} to '{newIndex}'\n";
-                MadeShifts++;
+                MadeShifts++;*/
             }
         }
 
@@ -313,6 +356,7 @@ namespace CollectionMaker
                 // Shift nastáva iba pri rovnakých pozíciách v L, R a B
                 // príležitosť je preto príliš vzácná, že keď sa naskytne, chceme ju využiť
                 return ElementAction.SHIFT;
+                //allowed.Add(ElementAction.SHIFT);
 
             }
             if (CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList))
@@ -340,20 +384,52 @@ namespace CollectionMaker
             };
         }
 
-        public static bool CanBeActionExecuted(ElementAction action, List<string> branch1, List<string> branch2)
+        public static bool CanBeActionExecuted(ElementAction action, List<string> baseList, List<string> branchList)
         {
             if (GetRemainingActions(action) == 0)
             {
                 return false;
             }
+            
+            if (action == ElementAction.REMOVAL)
+            {
+                int baseIndex = baseList.IndexOf(ActualElement);
+                int branchIndex = branchList.IndexOf(ActualElement);
+                //var otherBranch = branchList == LeftList ? RightList : LeftList;
+                //int otherBranchIndex = otherBranch.IndexOf(ActualElement);
+
+                if (baseIndex != branchIndex) return false;
+                /*
+                // prechadzajuci prvok je rovnaky v B aj v branche?
+                if (baseIndex > 0 && branchIndex == 0)
+                {
+                    if (branchList[branchIndex - 1] != baseList[baseIndex - 1]) return false;
+                }
+
+                // posledny element?
+                if (branchList.Count - 1 == branchIndex || baseList.Count - 1 == baseIndex) return true;
+                // dalsi branch posledny element?
+                if (otherBranch.Count - 1 == otherBranchIndex) return false;
+
+                // buduci prvok je rovnaky v B aj v branche?
+                if (branchList[branchIndex + 1] != baseList[baseIndex + 1]) return false;*/
+            }
 
             if (action == ElementAction.SHIFT)
             {
+                var otherBranch = branchList == LeftList ? RightList : LeftList;
                 // je posledny element?
-                if (branch1.IndexOf(ActualElement) >= branch1.Count - 2 || branch2.IndexOf(ActualElement) >= branch2.Count - 2) return false;
+                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 || branchList.IndexOf(ActualElement) >= branchList.Count - 2 || otherBranch.IndexOf(ActualElement) >= otherBranch.Count - 2) return false;
 
                 // rovnaka pozicia v listoch?
-                if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
+                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) || baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement)) return false;
+
+                for (int i = baseList.IndexOf(ActualElement) + 1; i < Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count); i++)
+                {
+                    if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i]) return true;
+                }
+                return false;
+                //if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
             }
 
             return true;
@@ -502,9 +578,9 @@ namespace CollectionMaker
                     throw new Exception("Neznama akcia v changelogu alebo chyba pri citani");
                 }
             }
-            XMLOutput.Export(leftList, "left", null, OutputDirectory);
-            XMLOutput.Export(rightList, "right", null, OutputDirectory);
-            XMLOutput.Export(baseList, "base", null, OutputDirectory);
+            XMLOutput.Export(leftList, "left", 0, OutputDirectory);
+            XMLOutput.Export(rightList, "right", 0, OutputDirectory);
+            XMLOutput.Export(baseList, "base", 0, OutputDirectory);
         }
 
         private static List<string> CreateListFromXml(string xmlPath)
