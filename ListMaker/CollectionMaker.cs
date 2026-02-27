@@ -253,15 +253,16 @@ namespace CollectionMaker
                 var otherBranch = branchList == LeftList ? RightList : LeftList;
 
                 int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count);
-                var rnd = Random.Shared.Next(index + 1, top);
+                var rnd = Random.Shared.Next(index + 1, top - 1);
                 bool found = false;
 
                 int attempts = 0;
-                while (baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd])
+                while ((baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd]) && 
+                    (baseList[rnd + 1] != branchList[rnd + 1] || otherBranch[rnd + 1] != baseList[rnd + 1]))
                 {
                     if (attempts == 20) break;
     
-                    rnd = Random.Shared.Next(index + 1, top);
+                    rnd = Random.Shared.Next(index + 1, top - 1);
                     attempts++;
                 }
                 if (attempts == 20)
@@ -404,17 +405,26 @@ namespace CollectionMaker
             {
                 var otherBranch = branchList == LeftList ? RightList : LeftList;
                 // je posledny element?
-                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 || 
-                    branchList.IndexOf(ActualElement) >= branchList.Count - 2 || 
+                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 ||
+                    branchList.IndexOf(ActualElement) >= branchList.Count - 2 ||
                     otherBranch.IndexOf(ActualElement) >= otherBranch.Count - 2) return false;
 
                 // rovnaka pozicia v listoch?
-                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) || 
+                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) ||
                     baseList.IndexOf(ActualElement) != otherBranch.IndexOf(ActualElement)) return false;
+                /*
+                if (baseList[baseList.IndexOf(ActualElement) + 1] != baseList[branchList.IndexOf(ActualElement) + 1] ||
+                    baseList[baseList.IndexOf(ActualElement) + 1] != otherBranch[otherBranch.IndexOf(ActualElement) + 1]) return false;*/
 
-                for (int i = baseList.IndexOf(ActualElement) + 1; i < Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count); i++)
+                int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count) - 1;
+                for (int i = baseList.IndexOf(ActualElement) + 1; i < top; i++)
                 {
-                    if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i]) return true;
+                    if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i])
+                    {
+                        // shiftuj na jedno miesto 2 krat
+                        if (baseList[i + 1] != branchList[i + 1] || otherBranch[i + 1] != baseList[i + 1]) continue;
+                        return true;
+                    }
                 }
                 return false;
                 //if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
