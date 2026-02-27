@@ -395,34 +395,22 @@ namespace CollectionMaker
             {
                 int baseIndex = baseList.IndexOf(ActualElement);
                 int branchIndex = branchList.IndexOf(ActualElement);
-                //var otherBranch = branchList == LeftList ? RightList : LeftList;
-                //int otherBranchIndex = otherBranch.IndexOf(ActualElement);
 
+                // POTOM: zisti ci funguje be tohot Shift/Add
                 if (baseIndex != branchIndex) return false;
-                /*
-                // prechadzajuci prvok je rovnaky v B aj v branche?
-                if (baseIndex > 0 && branchIndex == 0)
-                {
-                    if (branchList[branchIndex - 1] != baseList[baseIndex - 1]) return false;
-                }
-
-                // posledny element?
-                if (branchList.Count - 1 == branchIndex || baseList.Count - 1 == baseIndex) return true;
-                // dalsi branch posledny element?
-                if (otherBranch.Count - 1 == otherBranchIndex) return false;
-
-                // buduci prvok je rovnaky v B aj v branche?
-                if (branchList[branchIndex + 1] != baseList[baseIndex + 1]) return false;*/
             }
 
             if (action == ElementAction.SHIFT)
             {
                 var otherBranch = branchList == LeftList ? RightList : LeftList;
                 // je posledny element?
-                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 || branchList.IndexOf(ActualElement) >= branchList.Count - 2 || otherBranch.IndexOf(ActualElement) >= otherBranch.Count - 2) return false;
+                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 || 
+                    branchList.IndexOf(ActualElement) >= branchList.Count - 2 || 
+                    otherBranch.IndexOf(ActualElement) >= otherBranch.Count - 2) return false;
 
                 // rovnaka pozicia v listoch?
-                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) || baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement)) return false;
+                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) || 
+                    baseList.IndexOf(ActualElement) != otherBranch.IndexOf(ActualElement)) return false;
 
                 for (int i = baseList.IndexOf(ActualElement) + 1; i < Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count); i++)
                 {
@@ -431,6 +419,8 @@ namespace CollectionMaker
                 return false;
                 //if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
             }
+
+
 
             return true;
         }
@@ -590,7 +580,6 @@ namespace CollectionMaker
 
             string xml = File.ReadAllText(xmlPath, Encoding.UTF8);
 
-            // Try List<string>
             try
             {
                 var serializer = new XmlSerializer(typeof(List<string>));
