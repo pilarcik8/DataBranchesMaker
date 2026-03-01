@@ -45,6 +45,11 @@ namespace PersonMaker
             {
                 throw new Exception("Žiadna operácia nie je povolená");
             }
+            if (!addingAllowed && !changesAllowed && !removingAllowed)
+            {
+                throw new Exception("Žiadná operácie nebola povolená");
+            }
+
             Iterations = numberIterations;
             AllowChange = changesAllowed;
             AllowRemove = removingAllowed;
@@ -97,14 +102,16 @@ namespace PersonMaker
                     AtributeAction actionR, actionL;
                     bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
 
+                    int remainingPositions = baseAtributeCount - i; // include current
+
                     if (leftIsKeep)
                     {
                         actionL = AtributeAction.KEEP;
-                        actionR = GetAtributeAction();
+                        actionR = GetAtributeAction(remainingPositions);
                     }
                     else
                     {
-                        actionL = GetAtributeAction();
+                        actionL = GetAtributeAction(remainingPositions);
                         actionR = AtributeAction.KEEP;
                     }
 
@@ -178,66 +185,45 @@ namespace PersonMaker
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
-        public static AtributeAction GetAtributeAction()
+        public static AtributeAction GetAtributeAction(int remainingPositions)
         {
-            var allowed = new List<AtributeAction> { AtributeAction.KEEP };
-
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;
             int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
 
             int remainingModifications = remaningAdd + remaningChange + remaningRemove;
 
-            // Keď je povolená len jedna posledna modifikacia, chceme aby KEEP padal častejšie
-            // Špecialne hlavne ak od zaciatku je iba jedna modifikacia povolena, modifikacia by padala prilis skoro a potom by sa uz len KEEP opakoval
+            // ak zostava jedna modifikacia, rovnomerna pravdepodobnost pre kazdy atribut
             if (remainingModifications == 1)
             {
-                int randomValue = Random.Shared.Next(3);
-                if (randomValue != 0) return AtributeAction.KEEP;
+                remainingPositions = Math.Max(1, remainingPositions);
+                if (Random.Shared.Next(remainingPositions) != 0)
+                {
+                    return AtributeAction.KEEP;
+                }
             }
 
-            // Normany vyber akcii, v zavislosti od toho co je este povolene a kolko z toho este moze padat
-            if (remaningChange > 0)
+            var availableMods = new List<AtributeAction>();
+            if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
+            if (remaningRemove > 0) availableMods.Add(AtributeAction.REMOVE);
+            if (remaningAdd > 0) availableMods.Add(AtributeAction.ADD);
+
+
+            var madeModifications = MadeAdditions + MadeChanges + MadeChanges;
+            
+            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie
+            if (remainingPositions <= 1 && madeModifications == 0 && availableMods.Count > 0)
             {
-                allowed.Add(AtributeAction.CHANGE);
+                return availableMods[Random.Shared.Next(availableMods.Count)];
             }
-            if (remaningRemove > 0)
-            {
-                allowed.Add(AtributeAction.REMOVE);
-            }
-            if (remaningAdd > 0)
-            {
-                allowed.Add(AtributeAction.ADD);
-            }
+
+            var allowed = new List<AtributeAction> { AtributeAction.KEEP };
+            allowed.AddRange(availableMods);
 
             int index = Random.Shared.Next(allowed.Count);
             return allowed[index];
         }
 
-        private static Person CreatePerson()
-        {
-            var personFaker = new Faker<Person>("en")
-                .RuleFor(p => p.Title, f => f.Name.Prefix())
-                .RuleFor(p => p.FirstName, f => f.Name.FirstName())
-                .RuleFor(p => p.LastName, f => f.Name.LastName())
-                .RuleFor(p => p.Email, f => f.Internet.Email())
-                .RuleFor(p => p.Phone, f => f.Phone.PhoneNumber())
-                .RuleFor(p => p.Gender, f => f.PickRandom(new[] { "Male", "Female", "Other" }))
-                .RuleFor(p => p.Company, f => f.Company.CompanyName())
-                .RuleFor(p => p.JobTitle, f => f.Name.JobTitle())
-                .RuleFor(p => p.CreditCardNumber, f => f.Finance.CreditCardNumber())
-                .RuleFor(p => p.Street, f => f.Address.StreetName())
-                .RuleFor(p => p.StreetNumber, f => f.Address.SecondaryAddress())
-                .RuleFor(p => p.City, f => f.Address.City())
-                .RuleFor(p => p.County, f => f.Address.County())
-                .RuleFor(p => p.State, f => f.Address.State())
-                .RuleFor(p => p.ZipCode, f => f.Address.ZipCode())
-                .RuleFor(p => p.Country, f => f.Address.Country());
-
-            return personFaker.Generate();
-        }
-
-        // Create person with auxiliary fields set to placeholder ("null") from the start.
         private static Person CreatePersonWithPlaceholders()
         {
             var f = new Faker("en");
