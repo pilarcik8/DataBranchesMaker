@@ -1,4 +1,5 @@
 ﻿using Bogus;
+using System.Xml.Serialization;
 
 namespace Shared
 {
@@ -6,54 +7,85 @@ namespace Shared
     // Kazdy druhy atribut je aby sa pocas runntimu dal "pridat" novy atribut (nastaveny na null == neexistuje pre xml)
     public class Person
     {
+        [XmlElement(Order = 1)]
         public string? Iban;
+        [XmlElement(Order = 2)]
         public string? Title { get; set; } //0
         /*---------------------------------------*/
+        [XmlElement(Order = 3)]
         public string? FavouriteColor;
+        [XmlElement(Order = 4)]
         public string? FirstName { get; set; } //1
         /*---------------------------------------*/
+        [XmlElement(Order = 5)]
         public string? BitcoinAddress;
+        [XmlElement(Order = 6)]
         public string? LastName { get; set; } //2
         /*---------------------------------------*/
+        [XmlElement(Order = 7)]
         public string? EmailUserName;
+        [XmlElement(Order = 8)]
         public string? Email { get; set; } //3
         /*---------------------------------------*/
+        [XmlElement(Order = 9)]
         public string? PhoneExtension;
+        [XmlElement(Order = 10)]
         public string? Phone { get; set; } //4
         /*---------------------------------------*/
+        [XmlElement(Order = 11)]
         public string? FavouriteWord;
+        [XmlElement(Order = 12)]
         public string? Gender { get; set; }  //5
         /*---------------------------------------*/
+        [XmlElement(Order = 13)]
         public string? FavouriteMusicGenre;
+        [XmlElement(Order = 14)]
         public string? StreetNumber { get; set; } //6
 
         /*---------------------------------------*/
+        [XmlElement(Order = 15)]
         public string? CompanyCatchPhrase;
+        [XmlElement(Order = 16)]
         public string? Company { get; set; } //7
         /*---------------------------------------*/
+        [XmlElement(Order = 17)]
         public string? JobDescriptor;
+        [XmlElement(Order = 18)]
         public string? JobTitle { get; set; } //8
         /*---------------------------------------*/
+        [XmlElement(Order = 19)]
         public string? CreditAccount;
+        [XmlElement(Order = 20)]
         public string? CreditCardNumber { get; set; } //9
         /*---------------------------------------*/
+        [XmlElement(Order = 21)]
         public string? StreetSuffix;
+        [XmlElement(Order = 22)]
         public string? Street { get; set; } //10
         /*---------------------------------------*/
+        [XmlElement(Order = 23)]
         public string? CityPrefix;
+        [XmlElement(Order = 24)]
         public string? City { get; set; } //11
         /*---------------------------------------*/
+        [XmlElement(Order = 25)]
         public string? CountyCode;
+        [XmlElement(Order = 26)]
         public string? County { get; set; } //12
         /*---------------------------------------*/
-
+        [XmlElement(Order = 27)]
         public string? State { get; set; } //13
+        [XmlElement(Order = 28)]
         public string? StateAbbr;
         /*---------------------------------------*/
+        [XmlElement(Order = 29)]
         public string? ZipPlus4;
+        [XmlElement(Order = 30)]
         public string? ZipCode { get; set; } //14
         /*---------------------------------------*/
+        [XmlElement(Order = 31)]
         public string? CountryCode;
+        [XmlElement(Order = 32)]
         public string? Country { get; set; } //15
 
         public Person()
@@ -90,7 +122,6 @@ namespace Shared
             CountyCode = null;
             StateAbbr = null;
             ZipPlus4 = null;
-            CountryCode = null;
         }
 
         public string[] AddAttribute(int i, Faker faker, string preGeneratedValue = "")
@@ -192,7 +223,6 @@ namespace Shared
                     this.ZipPlus4 = value;
                     name = nameof(ZipPlus4);
                     break;
-
                 case 15:
                     value = hasPreGen ? preGeneratedValue : faker.Address.CountryCode();
                     this.CountryCode = value;
@@ -203,7 +233,7 @@ namespace Shared
                     throw new ArgumentOutOfRangeException(nameof(i), i, "Invalid attribute index");
             }
 
-            string[] valueAndName = [value, name];
+            string[] valueAndName = new[] { value, name };
             return valueAndName;
         }
 
@@ -265,7 +295,6 @@ namespace Shared
 
                 case 6:
                     {
-                        // StreetNumber replaced old Age attribute
                         newValue = faker.Address.BuildingNumber();
                         while (newValue == old)
                             newValue = faker.Address.BuildingNumber();

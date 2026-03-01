@@ -76,13 +76,15 @@ namespace PersonMaker
                 Console.WriteLine($"Iteration {iteration}:");
                 // Vytvorenie vyslednej osoby
                 var faker = new Faker("en");
-                ResultPerson = CreatePerson();
-                int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
+
+                ResultPerson = CreatePersonWithPlaceholders();
 
                 // Tvorba 2 branchov a ich predka
                 LeftPerson = ResultPerson.Clone();
                 RightPerson = ResultPerson.Clone();
                 BasePerson = ResultPerson.Clone();
+
+                int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
 
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
@@ -123,6 +125,7 @@ namespace PersonMaker
                         ExecuteAction(RightPerson, BasePerson, i, actionR, faker, iteration);
                     }
                 }
+
                 XMLOutput.Export(RightPerson, "right", iteration, OutputDirectory);
                 XMLOutput.Export(LeftPerson, "left", iteration, OutputDirectory);
                 XMLOutput.Export(BasePerson, "base", iteration, OutputDirectory);
@@ -161,13 +164,14 @@ namespace PersonMaker
             }
             else if (action == AtributeAction.ADD)
             {
+                var attributeBeforeAdd = branchPerson.GetAttributeName(i);
                 var valueAndNameOfNewAttribute = branchPerson.AddAttribute(i, faker);
                 string valueOfNewAttribute = valueAndNameOfNewAttribute[0];
                 string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
 
-                ChangeLogText += $"Added new attribute named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'\n";
+                ChangeLogText += $"Added new attribute named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}' was added before attribute '{attributeBeforeAdd}'\n";
 
                 MadeAdditions++;
             }
@@ -177,7 +181,7 @@ namespace PersonMaker
         public static AtributeAction GetAtributeAction()
         {
             var allowed = new List<AtributeAction> { AtributeAction.KEEP };
-            
+
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;
             int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
@@ -188,7 +192,7 @@ namespace PersonMaker
             // Špecialne hlavne ak od zaciatku je iba jedna modifikacia povolena, modifikacia by padala prilis skoro a potom by sa uz len KEEP opakoval
             if (remainingModifications == 1)
             {
-                int randomValue = Random.Shared.Next(5);
+                int randomValue = Random.Shared.Next(3);
                 if (randomValue != 0) return AtributeAction.KEEP;
             }
 
@@ -231,6 +235,32 @@ namespace PersonMaker
                 .RuleFor(p => p.Country, f => f.Address.Country());
 
             return personFaker.Generate();
+        }
+
+        // Create person with auxiliary fields set to placeholder ("null") from the start.
+        private static Person CreatePersonWithPlaceholders()
+        {
+            var f = new Faker("en");
+            var pf = new Faker<Person>("en")
+                // primary properties
+                .RuleFor(p => p.Title, _ => f.Name.Prefix())
+                .RuleFor(p => p.FirstName, _ => f.Name.FirstName())
+                .RuleFor(p => p.LastName, _ => f.Name.LastName())
+                .RuleFor(p => p.Email, _ => f.Internet.Email())
+                .RuleFor(p => p.Phone, _ => f.Phone.PhoneNumber())
+                .RuleFor(p => p.Gender, _ => f.PickRandom(new[] { "Male", "Female", "Other" }))
+                .RuleFor(p => p.Company, _ => f.Company.CompanyName())
+                .RuleFor(p => p.JobTitle, _ => f.Name.JobTitle())
+                .RuleFor(p => p.CreditCardNumber, _ => f.Finance.CreditCardNumber())
+                .RuleFor(p => p.Street, _ => f.Address.StreetName())
+                .RuleFor(p => p.StreetNumber, _ => f.Address.SecondaryAddress())
+                .RuleFor(p => p.City, _ => f.Address.City())
+                .RuleFor(p => p.County, _ => f.Address.County())
+                .RuleFor(p => p.State, _ => f.Address.State())
+                .RuleFor(p => p.ZipCode, _ => f.Address.ZipCode())
+                .RuleFor(p => p.Country, _ => f.Address.Country());
+
+            return pf.Generate();
         }
     }
 }
