@@ -94,7 +94,24 @@ namespace PersonMaker
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
+
+                int modificationsRemaining = (AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0) + 
+                                             (AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0) + 
+                                             (AllowChange ? MaxAllowedChanges - MadeChanges : 0);
+                if (modificationsRemaining == 2)
+                {
+                    leftKeepProbability = 0.5;
+                    rightKeepProbability = 0.5;
+                    ChangeLogText += $"Iteration {iteration}: One modification for L + B and another for R + B\n";
+                }
+                else
+                {
+
+                    ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
+                }
+
+                int leftModificationCount = 0;
+                int rightModificationCount = 0;
 
                 for (int i = 0; i < baseAtributeCount; i++)
                 {
@@ -102,6 +119,16 @@ namespace PersonMaker
                     AtributeAction actionR, actionL;
                     bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
 
+                    // ak mam povolene prave experiment s 2 akciami, očakávam že na oboch stranách bude daná akcia spravená presne raz
+                    if (modificationsRemaining == 2 && leftModificationCount > 0)
+                    {
+                        leftIsKeep = true;
+                    }
+                    else if (modificationsRemaining == 2 && rightModificationCount > 0)
+                    {
+                        leftIsKeep = false;
+                    }
+                    
                     int remainingPositions = baseAtributeCount - i; // include current
 
                     if (leftIsKeep)
@@ -123,11 +150,13 @@ namespace PersonMaker
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
+                        leftModificationCount++;
                         ChangeLogText += "Left and Base:\n";
                         ExecuteAction(LeftPerson, BasePerson, i, actionL, faker, iteration);
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
+                        rightModificationCount++;
                         ChangeLogText += "Right and Base:\n";
                         ExecuteAction(RightPerson, BasePerson, i, actionR, faker, iteration);
                     }
@@ -211,8 +240,8 @@ namespace PersonMaker
 
             var madeModifications = MadeAdditions + MadeChanges + MadeChanges;
             
-            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie
-            if (remainingPositions <= 1 && madeModifications == 0 && availableMods.Count > 0)
+            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie, alebo presne dve
+            if (remainingPositions <= 1 && madeModifications <= 1 && availableMods.Count > 0)
             {
                 return availableMods[Random.Shared.Next(availableMods.Count)];
             }
@@ -228,7 +257,6 @@ namespace PersonMaker
         {
             var f = new Faker("en");
             var pf = new Faker<Person>("en")
-                // primary properties
                 .RuleFor(p => p.Title, _ => f.Name.Prefix())
                 .RuleFor(p => p.FirstName, _ => f.Name.FirstName())
                 .RuleFor(p => p.LastName, _ => f.Name.LastName())
