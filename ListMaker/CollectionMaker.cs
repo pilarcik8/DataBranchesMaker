@@ -75,10 +75,9 @@ namespace CollectionMaker
             StartListOutputTest();
         }
 
-        public static void Run() { 
+        public static void Run()
+        {
             var faker = new Faker();
-
-            //return;
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 // Inicializácia
@@ -91,8 +90,8 @@ namespace CollectionMaker
                 int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
                 ResultList = CreateStartingList(faker, elementCount);
-                RightList = new List<string>(ResultList); 
-                LeftList = new List<string>(ResultList); 
+                RightList = new List<string>(ResultList);
+                LeftList = new List<string>(ResultList);
                 BaseList = new List<string>(ResultList);
                 RightList = new List<string>(ResultList);
 
@@ -229,8 +228,8 @@ namespace CollectionMaker
             else if (action == ElementAction.ADDITION)
             {
                 string newItem = GetNewDistinctWord(faker);
-                
-                int branchIndex = branchList.IndexOf(item);                
+
+                int branchIndex = branchList.IndexOf(item);
                 int baseIndex = baseList.IndexOf(item);
 
                 baseList.Insert(baseIndex, newItem);
@@ -257,11 +256,11 @@ namespace CollectionMaker
                 bool found = false;
 
                 int attempts = 0;
-                while ((baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd]) && 
+                while ((baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd]) &&
                     (baseList[rnd + 1] != branchList[rnd + 1] || otherBranch[rnd + 1] != baseList[rnd + 1]))
                 {
                     if (attempts == 20) break;
-    
+
                     rnd = Random.Shared.Next(index + 1, top - 1);
                     attempts++;
                 }
@@ -290,43 +289,6 @@ namespace CollectionMaker
                 branchList.Insert(rnd, item);
 
                 ChangeLogText += $"Shifting item: '{item}' from index {index} to '{rnd}'\n";
-
-                /*
-                int oldIndex = baseList.IndexOf(item);
-
-                // odstráň podľa indexu (očakávam že sú na rovnakej pozícii)
-                baseList.RemoveAt(oldIndex);
-                branchList.RemoveAt(oldIndex);
-
-                int maxShiftRange = baseList.Count - oldIndex;
-
-                // Ak už nejde previesť inú akciu ako Shift
-                // znížime rozsah, čo zvýši počet krát kedy shift bude
-                //      - potrebujeme aby L R a B pozicie boli rovnaké čo nastava až po indexe novej pozicie posledneho Shiftu
-                if (GetRemainingActions(ElementAction.REMOVAL) == 0 && GetRemainingActions(ElementAction.ADDITION) == 0)
-                {
-                    if (maxShiftRange > 15) {
-                        maxShiftRange = 15;
-                    }
-                }
-
-                int minCandidate = int.MaxValue;
-                for (int t = 0; t < 3; t++)
-                {
-                    int offset = Random.Shared.Next(1, maxShiftRange + 1);
-                    int candidate = oldIndex + offset;
-
-                    if (candidate < minCandidate)
-                        minCandidate = candidate;
-                }
-
-                int newIndex = minCandidate;
-
-                branchList.Insert(newIndex, item);
-                baseList.Insert(newIndex, item);
-
-                ChangeLogText += $"Shifting item: '{item}' from index {oldIndex} to '{newIndex}'\n";
-                MadeShifts++;*/
             }
         }
 
@@ -350,14 +312,13 @@ namespace CollectionMaker
                 return ElementAction.KEEP;
             }
 
-            var allowed = new List<ElementAction> {};
+            var allowed = new List<ElementAction> { };
 
             if (CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList))
             {
                 // Shift nastáva iba pri rovnakých pozíciách v L, R a B
                 // príležitosť je preto príliš vzácná, že keď sa naskytne, chceme ju využiť
                 return ElementAction.SHIFT;
-                //allowed.Add(ElementAction.SHIFT);
 
             }
             if (CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList))
@@ -369,6 +330,11 @@ namespace CollectionMaker
                 allowed.Add(ElementAction.ADDITION);
             }
 
+            // dovod: add chodi prilis casto lebo nema obmedzenia ako remove a shift
+            if (allowed.Count > 1 && allowed.Contains(ElementAction.ADDITION))
+            {
+                allowed.Remove(ElementAction.ADDITION);
+            }
             // vyber náhodnú akciu z povolených, alebo KEEP ak žiadna modifikácia není povolená
             return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ElementAction.KEEP;
         }
@@ -391,7 +357,7 @@ namespace CollectionMaker
             {
                 return false;
             }
-            
+
             if (action == ElementAction.REMOVAL)
             {
                 int baseIndex = baseList.IndexOf(ActualElement);
@@ -412,9 +378,6 @@ namespace CollectionMaker
                 // rovnaka pozicia v listoch?
                 if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) ||
                     baseList.IndexOf(ActualElement) != otherBranch.IndexOf(ActualElement)) return false;
-                /*
-                if (baseList[baseList.IndexOf(ActualElement) + 1] != baseList[branchList.IndexOf(ActualElement) + 1] ||
-                    baseList[baseList.IndexOf(ActualElement) + 1] != otherBranch[otherBranch.IndexOf(ActualElement) + 1]) return false;*/
 
                 int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count) - 1;
                 for (int i = baseList.IndexOf(ActualElement) + 1; i < top; i++)
@@ -427,7 +390,6 @@ namespace CollectionMaker
                     }
                 }
                 return false;
-                //if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
             }
 
 
@@ -471,6 +433,7 @@ namespace CollectionMaker
             {
                 allowed.Add(ElementAction.SHIFT);
             }
+
             return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
         }
 
@@ -508,11 +471,11 @@ namespace CollectionMaker
 
             string[] changeLogLines = File.ReadAllLines(changeLogPath, Encoding.UTF8);
 
-            for (int line = 4; line < changeLogLines.Length; line+=2)
+            for (int line = 4; line < changeLogLines.Length; line += 2)
             {
                 List<string> branchList;
 
-                if (changeLogLines[line].Trim() == "L, R, B:") 
+                if (changeLogLines[line].Trim() == "L, R, B:")
                 {
                     continue;
                 }

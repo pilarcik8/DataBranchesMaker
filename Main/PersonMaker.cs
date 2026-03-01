@@ -152,28 +152,25 @@ namespace PersonMaker
             else if (action == AtributeAction.REMOVE)
             {
                 var oldValue = branchPerson.GetAttribute(i);
-                ChangeLogText += $"Removed attribute: '{branchPerson.GetAttributeName(i)}' with value '{oldValue}'\n";
+                var attrName = branchPerson.GetAttributeName(i);
+                ChangeLogText += $"Removed attribute: '{attrName}' with value '{oldValue}'\n";
+
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
                 MadeRemovals++;
             }
-
             else if (action == AtributeAction.ADD)
             {
                 var valueAndNameOfNewAttribute = branchPerson.AddAttribute(i, faker);
-
                 string valueOfNewAttribute = valueAndNameOfNewAttribute[0];
                 string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
-                ChangeLogText += $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'\n";
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
+
+                ChangeLogText += $"Added new attribute named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'\n";
+
                 MadeAdditions++;
             }
-            else
-            {
-                throw new Exception("Neznáma akcia nájdená");
-            }
-
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP

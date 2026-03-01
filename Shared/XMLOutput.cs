@@ -35,7 +35,7 @@ namespace Shared
             {
                 if (iteration.HasValue)
                 {
-                    outputDir = Path.Combine(outputDir, iteration.ToString());
+                    outputDir = Path.Combine(outputDir, iteration.Value.ToString());
                 }
                 Directory.CreateDirectory(outputDir);
 

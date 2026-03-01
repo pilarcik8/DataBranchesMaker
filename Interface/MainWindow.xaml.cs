@@ -339,7 +339,7 @@ namespace Interface
                             maxShifts: 0 // pro set posuny nedávame povolené, takže 0
                         );
 
-                        global::CollectionMaker.CollectionMaker.Main();
+                        global::CollectionMaker.CollectionMaker.Run();
 
                         StatusTextBlock.Text = $"Exported HashSet<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;

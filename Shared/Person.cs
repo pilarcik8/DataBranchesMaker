@@ -6,10 +6,10 @@ namespace Shared
     // Kazdy druhy atribut je aby sa pocas runntimu dal "pridat" novy atribut (nastaveny na null == neexistuje pre xml)
     public class Person
     {
-        private string? Iban;
+        public string? Iban;
         public string? Title { get; set; } //0
         /*---------------------------------------*/
-        private string? FavouriteColor;
+        public string? FavouriteColor;
         public string? FirstName { get; set; } //1
         /*---------------------------------------*/
         public string? BitcoinAddress;
