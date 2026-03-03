@@ -284,6 +284,12 @@ namespace CollectionMaker
                 var otherBranch = branchList == LeftList ? RightList : LeftList;
 
                 int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count);
+
+                if (TestingOneActionTwice())
+                {
+                    // ujistime sa ze bude miesto pre dalsi shift
+                    if (MadeShifts == 0) top /= 2;
+                }
                 var rnd = Random.Shared.Next(index + 1, top - 1);
                 bool found = false;
 
@@ -339,6 +345,13 @@ namespace CollectionMaker
 
         public static ElementAction ChooseAction(List<string> branchList, int remainingPositions)
         {
+            // Ak nastane REMOVE, ďalšia akcia musí byť KEEP
+            if (NextWillBeKeep)
+            {
+                NextWillBeKeep = false;
+                return ElementAction.KEEP;
+            }
+
             // vypočítaj aktuálny zostávajúci počet modifikácií
             int remAdd = GetRemainingActions(ElementAction.ADDITION);
             int remShift = GetRemainingActions(ElementAction.SHIFT);
@@ -356,7 +369,7 @@ namespace CollectionMaker
                     return forced[Random.Shared.Next(forced.Count)];
                 // ak nič nie je vykonateľné, pokračujeme ďalej
             }
-
+            
             // Zachovať pravidlo 'po REMOVE musí nasledovať KEEP' (musí byť volané po povinnej kontrole vyššie).
             if (ShouldNextActionBeKeep(remainingPositions))
             {
@@ -416,7 +429,10 @@ namespace CollectionMaker
                 int branchIndex = branchList.IndexOf(ActualElement);
 
                 // skontroluj, či sa nachádzajú na rovnakej pozícii
-                if (baseIndex != branchIndex) return false;
+                if (AllowAdd || AllowShift)
+                {
+                    return (baseIndex == branchIndex);
+                }
             }
 
             if (action == ElementAction.SHIFT)
@@ -448,13 +464,6 @@ namespace CollectionMaker
 
         public static bool ShouldNextActionBeKeep(int remainingPositions)
         {
-            // Ak nastane REMOVE, ďalšia akcia musí byť KEEP
-            if (NextWillBeKeep)
-            {
-                NextWillBeKeep = false;
-                return true;
-            }
-
             int remaningAdd = GetRemainingActions(ElementAction.ADDITION);
             int remaningShift = GetRemainingActions(ElementAction.SHIFT);
             int remaningRemove = GetRemainingActions(ElementAction.REMOVAL);
@@ -462,28 +471,42 @@ namespace CollectionMaker
             int remainingModifications = remaningAdd + remaningShift + remaningRemove;
 
             int madeMofifications = MadeAdditions + MadeRemovals + MadeShifts;
+            int evenChance = Math.Max(1, remainingPositions);
 
-            // ak zostáva jedna alebo dve modifikácie, spravme rozloženie rovnomerne
-            if (remainingModifications <= 2 && remainingModifications > 0)
+            // jedna modifikacia
+            if (TestingOneActionOnce())
             {
-                // ak máme presne 2 modifikácie a zostávajú 2 pozície a ešte žiadna modifikácia nebola vykonaná, vynútime modifikáciu
-                if (remainingPositions == 2 && remainingModifications == 2 && madeMofifications == 0)
+                if (remainingPositions == 1 && remainingModifications == 1)
                 {
                     return false;
                 }
-                // ak sme na poslednej pozícii a už bola vykonaná aspoň jedna modifikácia, vynútime druhú
-                if (remainingPositions == 1 && remainingModifications == 1 && madeMofifications >= 1)
-                {
-                    return false;
-                }
+                return Random.Shared.Next(evenChance) != 0;            
 
-                remainingPositions = Math.Max(1, remainingPositions);
-                if (Random.Shared.Next(remainingPositions) != 0)
+            }
+            // dve modifikacie
+            else if (TestingOneActionTwice())
+            {
+
+                if (AllowRemove && remainingPositions <= 3 && remainingModifications != 0)
                 {
-                    return true;
+                    return false;
                 }
+                if (AllowShift && remainingPositions < ResultList.Count / 3 && remainingModifications != 1)
+                {
+                    return false;
+                }
+                if (AllowShift && remainingPositions < ResultList.Count - 2 && remainingModifications != 0)
+                {
+                    return false;
+                }
+                if (AllowAdd && remainingPositions <= 2 && remainingModifications != 0)
+                {
+                    return false;
+                }
+                return Random.Shared.Next(evenChance) != 0;
             }
 
+            // normalny
             var allowed = new List<ElementAction> { ElementAction.KEEP };
             if (remaningAdd > 0)
             {
@@ -499,6 +522,39 @@ namespace CollectionMaker
             }
 
             return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
+        }
+
+        public static bool TestingOneActionOnce()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+            if (AllowShift) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 1;
+        }
+
+        public static bool TestingOneActionTwice()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+            if (AllowShift) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 2;
+        }
+
+        public static int MaxActionsSum()
+        {
+            int allowedNumberOfActions = 0;
+            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
+            allowedNumberOfActions += AllowShift ? MaxAllowedShifts : 0;
+            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
+            return allowedNumberOfActions;
         }
 
         // METÓDY PRE TESTOVANIE
