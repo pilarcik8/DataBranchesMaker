@@ -34,7 +34,6 @@ namespace PersonMaker
         public static Person? RightPerson { get; set; }
         public static Person? ResultPerson { get; set; }
 
-
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
         {
             if (numberIterations <= 0)
@@ -95,18 +94,18 @@ namespace PersonMaker
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
 
-                int modificationsRemaining = (AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0) + 
+                int startingNumberOfMods = (AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0) + 
                                              (AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0) + 
                                              (AllowChange ? MaxAllowedChanges - MadeChanges : 0);
-                if (modificationsRemaining == 2)
+
+                if (startingNumberOfMods == 2)
                 {
                     leftKeepProbability = 0.5;
                     rightKeepProbability = 0.5;
-                    ChangeLogText += $"Iteration {iteration}: One modification for L + B and another for R + B\n";
+                    ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
                 }
                 else
                 {
-
                     ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
                 }
 
@@ -120,16 +119,16 @@ namespace PersonMaker
                     bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
 
                     // ak mam povolene prave experiment s 2 akciami, očakávam že na oboch stranách bude daná akcia spravená presne raz
-                    if (modificationsRemaining == 2 && leftModificationCount > 0)
+                    if (startingNumberOfMods == 2 && leftModificationCount > 0)
                     {
                         leftIsKeep = true;
                     }
-                    else if (modificationsRemaining == 2 && rightModificationCount > 0)
+                    else if (startingNumberOfMods == 2 && rightModificationCount > 0)
                     {
                         leftIsKeep = false;
                     }
                     
-                    int remainingPositions = baseAtributeCount - i; // include current
+                    int remainingPositions = baseAtributeCount - i; 
 
                     if (leftIsKeep)
                     {
@@ -222,6 +221,20 @@ namespace PersonMaker
 
             int remainingModifications = remaningAdd + remaningChange + remaningRemove;
 
+            var availableMods = new List<AtributeAction>();
+            if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
+            if (remaningRemove > 0) availableMods.Add(AtributeAction.REMOVE);
+            if (remaningAdd > 0) availableMods.Add(AtributeAction.ADD);
+
+
+            var madeModifications = MadeAdditions + MadeChanges + MadeRemovals;
+
+            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie
+            if (remainingPositions == 1 && madeModifications == 0 && availableMods.Count > 0)
+            {
+                return availableMods[Random.Shared.Next(availableMods.Count)];
+            }
+
             // ak zostava jedna modifikacia, rovnomerna pravdepodobnost pre kazdy atribut
             if (remainingModifications == 1)
             {
@@ -230,20 +243,6 @@ namespace PersonMaker
                 {
                     return AtributeAction.KEEP;
                 }
-            }
-
-            var availableMods = new List<AtributeAction>();
-            if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
-            if (remaningRemove > 0) availableMods.Add(AtributeAction.REMOVE);
-            if (remaningAdd > 0) availableMods.Add(AtributeAction.ADD);
-
-
-            var madeModifications = MadeAdditions + MadeChanges + MadeChanges;
-            
-            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie, alebo presne dve
-            if (remainingPositions <= 1 && madeModifications <= 1 && availableMods.Count > 0)
-            {
-                return availableMods[Random.Shared.Next(availableMods.Count)];
             }
 
             var allowed = new List<AtributeAction> { AtributeAction.KEEP };
