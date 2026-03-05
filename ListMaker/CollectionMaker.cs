@@ -43,7 +43,7 @@ namespace CollectionMaker
         // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP, inak merger nerozozna poradie prvkov
         public static bool NextWillBeKeep = false;
 
-        // True = List / False = Set
+        // True = poradie záleží (List), False = poradie nezáleží (Set)
         public static bool OrderMatters = true;
 
         public static List<string> ResultList = new List<string>();
@@ -75,10 +75,9 @@ namespace CollectionMaker
             StartListOutputTest();
         }
 
-        public static void Run() { 
+        public static void Run()
+        {
             var faker = new Faker();
-
-            //return;
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 // Inicializácia
@@ -91,8 +90,8 @@ namespace CollectionMaker
                 int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
                 ResultList = CreateStartingList(faker, elementCount);
-                RightList = new List<string>(ResultList); 
-                LeftList = new List<string>(ResultList); 
+                RightList = new List<string>(ResultList);
+                LeftList = new List<string>(ResultList);
                 BaseList = new List<string>(ResultList);
                 RightList = new List<string>(ResultList);
 
@@ -104,22 +103,53 @@ namespace CollectionMaker
                 if (AllowShift) ChangeLogText += "Shift ";
                 ChangeLogText += "\n";
                 ChangeLogText += $"Max Allowed Actions: Remove: {MaxAllowedRemovals}, Add: {MaxAllowedAdditions}, Shift: {MaxAllowedShifts}\n";
-                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n\n";
+
+                int startingNumberOfMOds = 
+                    GetRemainingActions(ElementAction.REMOVAL) +
+                    GetRemainingActions(ElementAction.SHIFT) +
+                    GetRemainingActions(ElementAction.ADDITION);
+
+                if (startingNumberOfMOds == 2)
+                {
+                    leftKeepProbability = 0.5;
+                    rightKeepProbability = 0.5;
+                    ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
+                }
+                else
+                {
+                    ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
+                }
+
+                int leftModificationCount = 0;
+                int rightModificationCount = 0;
 
                 // Akcie sa vyberu a rovno vykonaju
-                foreach (string item in ResultList)
+                for (int i = 0; i < elementCount; i++)
                 {
+                    var item = ResultList[i];
+                    int remainingPositions = elementCount - i;
                     ActualElement = item;
                     ElementAction leftAct, rightAct;
                     string message;
-                    if (Random.Shared.NextDouble() < leftKeepProbability)
+
+                    bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
+                    if (startingNumberOfMOds == 2 && leftModificationCount > 0)
+                    {
+                        leftIsKeep = true;
+                    }
+                    else if (startingNumberOfMOds == 2 && rightModificationCount > 0)
+                    {
+                        leftIsKeep = false;
+                    }                     
+
+                    if (leftIsKeep)
                     {
                         leftAct = ElementAction.KEEP;
-                        rightAct = ChooseAction(RightList);
+                        rightAct = ChooseAction(RightList, remainingPositions);
                     }
                     else
                     {
-                        leftAct = ChooseAction(LeftList);
+                        leftAct = ChooseAction(LeftList, remainingPositions);
                         rightAct = ElementAction.KEEP;
                     }
 
@@ -134,13 +164,14 @@ namespace CollectionMaker
                         message = "R, B:";
                         ChangeLogText += message + "\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
+                        rightModificationCount++;
                     }
                     else if (rightAct == ElementAction.KEEP)
                     {
                         message = "L, B:";
                         ChangeLogText += message + "\n";
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
-
+                        leftModificationCount++;
                     }
                 }
 
@@ -188,7 +219,7 @@ namespace CollectionMaker
             return list;
         }
 
-        // Fisher-Yates shuffle algoritmus pre náhodné premiešanie prvkov v liste
+        // Fisher–Yates algoritmus pre náhodné premiešanie prvkov v zozname
         public static List<string> Shuffle(List<string> list)
         {
             if (OrderMatters) throw new InvalidOperationException("Cannot shuffle list when order matters.");
@@ -229,8 +260,8 @@ namespace CollectionMaker
             else if (action == ElementAction.ADDITION)
             {
                 string newItem = GetNewDistinctWord(faker);
-                
-                int branchIndex = branchList.IndexOf(item);                
+
+                int branchIndex = branchList.IndexOf(item);
                 int baseIndex = baseList.IndexOf(item);
 
                 baseList.Insert(baseIndex, newItem);
@@ -247,41 +278,55 @@ namespace CollectionMaker
                 MadeAdditions++;
             }
             else if (action == ElementAction.SHIFT)
-            {                
-                int oldIndex = baseList.IndexOf(item);
+            {
+                int index = baseList.IndexOf(item);
 
-                // odstráň podľa indexu (očakávam že sú na rovnakej pozícii)
-                baseList.RemoveAt(oldIndex);
-                branchList.RemoveAt(oldIndex);
+                var otherBranch = branchList == LeftList ? RightList : LeftList;
 
-                int maxShiftRange = baseList.Count - oldIndex;
+                int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count);
 
-                // Ak už nejde previesť inú akciu ako Shift
-                // znížime rozsah, čo zvýši počet krát kedy shift bude
-                //      - potrebujeme aby L R a B pozicie boli rovnaké čo nastava až po indexe novej pozicie posledneho Shiftu
-                if (GetRemainingActions(ElementAction.REMOVAL) == 0 && GetRemainingActions(ElementAction.ADDITION) == 0)
+                if (TestingOneActionTwice())
                 {
-                    if (maxShiftRange > 15) {
-                        maxShiftRange = 15;
+                    // ujistime sa ze bude miesto pre dalsi shift
+                    if (MadeShifts == 0) top /= 2;
+                }
+                var rnd = Random.Shared.Next(index + 1, top - 1);
+                bool found = false;
+
+                int attempts = 0;
+                while ((baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd]) &&
+                    (baseList[rnd + 1] != branchList[rnd + 1] || otherBranch[rnd + 1] != baseList[rnd + 1]))
+                {
+                    if (attempts == 20) break;
+
+                    rnd = Random.Shared.Next(index + 1, top - 1);
+                    attempts++;
+                }
+                if (attempts == 20)
+                {
+                    for (int i = index + 1; i < top; i++)
+                    {
+                        if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i])
+                        {
+                            rnd = i;
+                            found = true;
+                            break;
+                        }
                     }
                 }
-
-                int minCandidate = int.MaxValue;
-                for (int t = 0; t < 3; t++)
+                else
                 {
-                    int offset = Random.Shared.Next(1, maxShiftRange + 1);
-                    int candidate = oldIndex + offset;
-
-                    if (candidate < minCandidate)
-                        minCandidate = candidate;
+                    found = true;
                 }
 
-                int newIndex = minCandidate;
+                if (!found) throw new Exception("not found index to land on Shift");
 
-                branchList.Insert(newIndex, item);
-                baseList.Insert(newIndex, item);
+                baseList.Remove(item);
+                branchList.Remove(item);
+                baseList.Insert(rnd, item);
+                branchList.Insert(rnd, item);
 
-                ChangeLogText += $"Shifting item: '{item}' from index {oldIndex} to '{newIndex}'\n";
+                ChangeLogText += $"Shifting item: '{item}' from index {index} to '{rnd}'\n";
                 MadeShifts++;
             }
         }
@@ -298,15 +343,41 @@ namespace CollectionMaker
             return word;
         }
 
-        public static ElementAction ChooseAction(List<string> branchList)
+        public static ElementAction ChooseAction(List<string> branchList, int remainingPositions)
         {
-            // ked nastane remove, dalsia akcia musi byt keep, inak merger nerozozna poradie prvkov
-            if (ShouldNextActionBeKeep())
+            // Ak nastane REMOVE, ďalšia akcia musí byť KEEP
+            if (NextWillBeKeep)
+            {
+                NextWillBeKeep = false;
+                return ElementAction.KEEP;
+            }
+
+            // vypočítaj aktuálny zostávajúci počet modifikácií
+            int remAdd = GetRemainingActions(ElementAction.ADDITION);
+            int remShift = GetRemainingActions(ElementAction.SHIFT);
+            int remRem = GetRemainingActions(ElementAction.REMOVAL);
+            int remainingMods = remAdd + remShift + remRem;
+
+            if ((remainingMods == 2 && remainingPositions <= 2) || (remainingMods == 1 && remainingPositions <= 1))
+            {
+                var forced = new List<ElementAction>();
+                if (remShift > 0 && CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList)) forced.Add(ElementAction.SHIFT);
+                if (remRem > 0 && CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList)) forced.Add(ElementAction.REMOVAL);
+                if (remAdd > 0 && CanBeActionExecuted(ElementAction.ADDITION, BaseList, branchList)) forced.Add(ElementAction.ADDITION);
+
+                if (forced.Count > 0)
+                    return forced[Random.Shared.Next(forced.Count)];
+                // ak nič nie je vykonateľné, pokračujeme ďalej
+            }
+            
+            // Zachovať pravidlo 'po REMOVE musí nasledovať KEEP' (musí byť volané po povinnej kontrole vyššie).
+            if (ShouldNextActionBeKeep(remainingPositions))
             {
                 return ElementAction.KEEP;
             }
 
-            var allowed = new List<ElementAction> {};
+            // existujúca logika výberu (preferovať SHIFT atď.)
+            var allowed = new List<ElementAction> { };
 
             if (CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList))
             {
@@ -324,7 +395,12 @@ namespace CollectionMaker
                 allowed.Add(ElementAction.ADDITION);
             }
 
-            // vyber náhodnú akciu z povolených, alebo KEEP ak žiadna modifikácia není povolená
+            // dôvod: ADD sa vyskytuje príliš často, lebo nemá také obmedzenia ako REMOVE a SHIFT
+            if (allowed.Count > 1 && allowed.Contains(ElementAction.ADDITION))
+            {
+                allowed.Remove(ElementAction.ADDITION);
+            }
+            // vyber náhodnú akciu z povolených, alebo KEEP ak žiadna modifikácia nie je povolená
             return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ElementAction.KEEP;
         }
 
@@ -335,53 +411,102 @@ namespace CollectionMaker
                 ElementAction.ADDITION => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
                 ElementAction.REMOVAL => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
                 ElementAction.SHIFT => AllowShift ? MaxAllowedShifts - MadeShifts : 0,
-                ElementAction.KEEP => int.MaxValue, // Keep není omezený, protože není modifikací
+                ElementAction.KEEP => int.MaxValue, // KEEP nie je obmedzený
                 _ => throw new InvalidOperationException($"Unexpected action: {action}")
             };
         }
 
-        public static bool CanBeActionExecuted(ElementAction action, List<string> branch1, List<string> branch2)
+        public static bool CanBeActionExecuted(ElementAction action, List<string> baseList, List<string> branchList)
         {
             if (GetRemainingActions(action) == 0)
             {
                 return false;
             }
 
-            if (action == ElementAction.SHIFT)
+            if (action == ElementAction.REMOVAL)
             {
-                // je posledny element?
-                if (branch1.IndexOf(ActualElement) >= branch1.Count - 2 || branch2.IndexOf(ActualElement) >= branch2.Count - 2) return false;
+                int baseIndex = baseList.IndexOf(ActualElement);
+                int branchIndex = branchList.IndexOf(ActualElement);
 
-                // rovnaka pozicia v listoch?
-                if (BaseList.IndexOf(ActualElement) != RightList.IndexOf(ActualElement) || BaseList.IndexOf(ActualElement) != LeftList.IndexOf(ActualElement)) return false;
+                // skontroluj, či sa nachádzajú na rovnakej pozícii
+                if (AllowAdd || AllowShift)
+                {
+                    return (baseIndex == branchIndex);
+                }
             }
 
+            if (action == ElementAction.SHIFT)
+            {
+                var otherBranch = branchList == LeftList ? RightList : LeftList;
+                // je posledný element?
+                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 ||
+                    branchList.IndexOf(ActualElement) >= branchList.Count - 2 ||
+                    otherBranch.IndexOf(ActualElement) >= otherBranch.Count - 2) return false;
+
+                // rovnaká pozícia v zoznamoch?
+                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) ||
+                    baseList.IndexOf(ActualElement) != otherBranch.IndexOf(ActualElement)) return false;
+
+                int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count) - 1;
+                for (int i = baseList.IndexOf(ActualElement) + 1; i < top; i++)
+                {
+                    if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i])
+                    {
+                        // skúsiť posun o dve pozície aby sa predišlo opakovaniu na rovnakom mieste
+                        if (baseList[i + 1] != branchList[i + 1] || otherBranch[i + 1] != baseList[i + 1]) continue;
+                        return true;
+                    }
+                }
+                return false;
+            }
             return true;
         }
 
-        public static bool ShouldNextActionBeKeep()
+        public static bool ShouldNextActionBeKeep(int remainingPositions)
         {
-            // Ak nastane REMOVE, ďalšia akcia musí být KEEP, jinak merger nerozozna pořadí prvkov
-            if (NextWillBeKeep)
-            {
-                NextWillBeKeep = false;
-                return true;
-            }
-
             int remaningAdd = GetRemainingActions(ElementAction.ADDITION);
             int remaningShift = GetRemainingActions(ElementAction.SHIFT);
             int remaningRemove = GetRemainingActions(ElementAction.REMOVAL);
 
             int remainingModifications = remaningAdd + remaningShift + remaningRemove;
 
-            // Ak zostáva len jedna možná modifikácia, znížime pravdepodobnosť jej výberu
-            // dôvod: ak napr. testujem či akcia funguje a teda Max operacie dam 1, nechem aby sa vykonala hned na zaciatku
-            if (remainingModifications == 1)
+            int madeMofifications = MadeAdditions + MadeRemovals + MadeShifts;
+            int evenChance = Math.Max(1, remainingPositions);
+
+            // jedna modifikacia
+            if (TestingOneActionOnce())
             {
-                int randomValue = Random.Shared.Next(5);
-                if (randomValue != 0) return true; // 80% že bude Keep 
+                if (remainingPositions == 1 && remainingModifications == 1)
+                {
+                    return false;
+                }
+                return Random.Shared.Next(evenChance) != 0;            
+
+            }
+            // dve modifikacie
+            else if (TestingOneActionTwice())
+            {
+
+                if (AllowRemove && remainingPositions <= 3 && remainingModifications != 0)
+                {
+                    return false;
+                }
+                if (AllowShift && remainingPositions < ResultList.Count / 3 && remainingModifications != 1)
+                {
+                    return false;
+                }
+                if (AllowShift && remainingPositions < ResultList.Count - 2 && remainingModifications != 0)
+                {
+                    return false;
+                }
+                if (AllowAdd && remainingPositions <= 2 && remainingModifications != 0)
+                {
+                    return false;
+                }
+                return Random.Shared.Next(evenChance) != 0;
             }
 
+            // normalny
             var allowed = new List<ElementAction> { ElementAction.KEEP };
             if (remaningAdd > 0)
             {
@@ -395,10 +520,44 @@ namespace CollectionMaker
             {
                 allowed.Add(ElementAction.SHIFT);
             }
+
             return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
         }
 
-        // METODY PRE TESTOVANIE
+        public static bool TestingOneActionOnce()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+            if (AllowShift) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 1;
+        }
+
+        public static bool TestingOneActionTwice()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+            if (AllowShift) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 2;
+        }
+
+        public static int MaxActionsSum()
+        {
+            int allowedNumberOfActions = 0;
+            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
+            allowedNumberOfActions += AllowShift ? MaxAllowedShifts : 0;
+            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
+            return allowedNumberOfActions;
+        }
+
+        // METÓDY PRE TESTOVANIE
         private static void StartListOutputTest()
         {
             Console.WriteLine("Zadaj cestu k expectedResult súboru");
@@ -432,11 +591,11 @@ namespace CollectionMaker
 
             string[] changeLogLines = File.ReadAllLines(changeLogPath, Encoding.UTF8);
 
-            for (int line = 4; line < changeLogLines.Length; line+=2)
+            for (int line = 4; line < changeLogLines.Length; line += 2)
             {
                 List<string> branchList;
 
-                if (changeLogLines[line].Trim() == "L, R, B:") 
+                if (changeLogLines[line].Trim() == "L, R, B:")
                 {
                     continue;
                 }
@@ -502,9 +661,9 @@ namespace CollectionMaker
                     throw new Exception("Neznama akcia v changelogu alebo chyba pri citani");
                 }
             }
-            XMLOutput.Export(leftList, "left", null, OutputDirectory);
-            XMLOutput.Export(rightList, "right", null, OutputDirectory);
-            XMLOutput.Export(baseList, "base", null, OutputDirectory);
+            XMLOutput.Export(leftList, "left", 0, OutputDirectory);
+            XMLOutput.Export(rightList, "right", 0, OutputDirectory);
+            XMLOutput.Export(baseList, "base", 0, OutputDirectory);
         }
 
         private static List<string> CreateListFromXml(string xmlPath)
@@ -514,7 +673,6 @@ namespace CollectionMaker
 
             string xml = File.ReadAllText(xmlPath, Encoding.UTF8);
 
-            // Try List<string>
             try
             {
                 var serializer = new XmlSerializer(typeof(List<string>));

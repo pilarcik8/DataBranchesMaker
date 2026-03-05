@@ -34,7 +34,6 @@ namespace PersonMaker
         public static Person? RightPerson { get; set; }
         public static Person? ResultPerson { get; set; }
 
-
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
         {
             if (numberIterations <= 0)
@@ -45,6 +44,11 @@ namespace PersonMaker
             {
                 throw new Exception("Žiadna operácia nie je povolená");
             }
+            if (!addingAllowed && !changesAllowed && !removingAllowed)
+            {
+                throw new Exception("Žiadná operácie nebola povolená");
+            }
+
             Iterations = numberIterations;
             AllowChange = changesAllowed;
             AllowRemove = removingAllowed;
@@ -76,18 +80,37 @@ namespace PersonMaker
                 Console.WriteLine($"Iteration {iteration}:");
                 // Vytvorenie vyslednej osoby
                 var faker = new Faker("en");
-                ResultPerson = CreatePerson();
-                int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
+
+                ResultPerson = CreatePersonWithPlaceholders();
 
                 // Tvorba 2 branchov a ich predka
                 LeftPerson = ResultPerson.Clone();
                 RightPerson = ResultPerson.Clone();
                 BasePerson = ResultPerson.Clone();
 
+                int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
+
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
+
+                int startingNumberOfMods = (AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0) + 
+                                             (AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0) + 
+                                             (AllowChange ? MaxAllowedChanges - MadeChanges : 0);
+
+                if (startingNumberOfMods == 2)
+                {
+                    leftKeepProbability = 0.5;
+                    rightKeepProbability = 0.5;
+                    ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
+                }
+                else
+                {
+                    ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
+                }
+
+                int leftModificationCount = 0;
+                int rightModificationCount = 0;
 
                 for (int i = 0; i < baseAtributeCount; i++)
                 {
@@ -95,14 +118,26 @@ namespace PersonMaker
                     AtributeAction actionR, actionL;
                     bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
 
+                    // ak mam povolene prave experiment s 2 akciami, očakávam že na oboch stranách bude daná akcia spravená presne raz
+                    if (startingNumberOfMods == 2 && leftModificationCount > 0)
+                    {
+                        leftIsKeep = true;
+                    }
+                    else if (startingNumberOfMods == 2 && rightModificationCount > 0)
+                    {
+                        leftIsKeep = false;
+                    }
+                    
+                    int remainingPositions = baseAtributeCount - i; 
+
                     if (leftIsKeep)
                     {
                         actionL = AtributeAction.KEEP;
-                        actionR = GetAtributeAction();
+                        actionR = GetAtributeAction(remainingPositions);
                     }
                     else
                     {
-                        actionL = GetAtributeAction();
+                        actionL = GetAtributeAction(remainingPositions);
                         actionR = AtributeAction.KEEP;
                     }
 
@@ -114,15 +149,18 @@ namespace PersonMaker
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
+                        leftModificationCount++;
                         ChangeLogText += "Left and Base:\n";
                         ExecuteAction(LeftPerson, BasePerson, i, actionL, faker, iteration);
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
+                        rightModificationCount++;
                         ChangeLogText += "Right and Base:\n";
                         ExecuteAction(RightPerson, BasePerson, i, actionR, faker, iteration);
                     }
                 }
+
                 XMLOutput.Export(RightPerson, "right", iteration, OutputDirectory);
                 XMLOutput.Export(LeftPerson, "left", iteration, OutputDirectory);
                 XMLOutput.Export(BasePerson, "base", iteration, OutputDirectory);
@@ -152,88 +190,90 @@ namespace PersonMaker
             else if (action == AtributeAction.REMOVE)
             {
                 var oldValue = branchPerson.GetAttribute(i);
-                ChangeLogText += $"Removed attribute: '{branchPerson.GetAttributeName(i)}' with value '{oldValue}'\n";
+                var attrName = branchPerson.GetAttributeName(i);
+                ChangeLogText += $"Removed attribute: '{attrName}' with value '{oldValue}'\n";
+
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
                 MadeRemovals++;
             }
-
             else if (action == AtributeAction.ADD)
             {
+                var attributeBeforeAdd = branchPerson.GetAttributeName(i);
                 var valueAndNameOfNewAttribute = branchPerson.AddAttribute(i, faker);
-
                 string valueOfNewAttribute = valueAndNameOfNewAttribute[0];
                 string nameOfNewAttribute = valueAndNameOfNewAttribute[1];
 
-                ChangeLogText += $"Added new attribute before attribute '{branchPerson.GetAttributeName(i)}': named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}'\n";
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
+
+                ChangeLogText += $"Added new attribute named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}' was added before attribute '{attributeBeforeAdd}'\n";
+
                 MadeAdditions++;
             }
-            else
-            {
-                throw new Exception("Neznáma akcia nájdená");
-            }
-
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
-        public static AtributeAction GetAtributeAction()
+        public static AtributeAction GetAtributeAction(int remainingPositions)
         {
-            var allowed = new List<AtributeAction> { AtributeAction.KEEP };
-            
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;
             int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
 
             int remainingModifications = remaningAdd + remaningChange + remaningRemove;
 
-            // Keď je povolená len jedna posledna modifikacia, chceme aby KEEP padal častejšie
-            // Špecialne hlavne ak od zaciatku je iba jedna modifikacia povolena, modifikacia by padala prilis skoro a potom by sa uz len KEEP opakoval
-            if (remainingModifications == 1)
+            var availableMods = new List<AtributeAction>();
+            if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
+            if (remaningRemove > 0) availableMods.Add(AtributeAction.REMOVE);
+            if (remaningAdd > 0) availableMods.Add(AtributeAction.ADD);
+
+
+            var madeModifications = MadeAdditions + MadeChanges + MadeRemovals;
+
+            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie
+            if (remainingPositions == 1 && madeModifications == 0 && availableMods.Count > 0)
             {
-                int randomValue = Random.Shared.Next(5);
-                if (randomValue != 0) return AtributeAction.KEEP;
+                return availableMods[Random.Shared.Next(availableMods.Count)];
             }
 
-            // Normany vyber akcii, v zavislosti od toho co je este povolene a kolko z toho este moze padat
-            if (remaningChange > 0)
+            // ak zostava jedna modifikacia, rovnomerna pravdepodobnost pre kazdy atribut
+            if (remainingModifications == 1)
             {
-                allowed.Add(AtributeAction.CHANGE);
+                remainingPositions = Math.Max(1, remainingPositions);
+                if (Random.Shared.Next(remainingPositions) != 0)
+                {
+                    return AtributeAction.KEEP;
+                }
             }
-            if (remaningRemove > 0)
-            {
-                allowed.Add(AtributeAction.REMOVE);
-            }
-            if (remaningAdd > 0)
-            {
-                allowed.Add(AtributeAction.ADD);
-            }
+
+            var allowed = new List<AtributeAction> { AtributeAction.KEEP };
+            allowed.AddRange(availableMods);
 
             int index = Random.Shared.Next(allowed.Count);
             return allowed[index];
         }
 
-        private static Person CreatePerson()
+        private static Person CreatePersonWithPlaceholders()
         {
-            var personFaker = new Faker<Person>("en")
-                .RuleFor(p => p.Title, f => f.Name.Prefix())
-                .RuleFor(p => p.FirstName, f => f.Name.FirstName())
-                .RuleFor(p => p.LastName, f => f.Name.LastName())
-                .RuleFor(p => p.Email, f => f.Internet.Email())
-                .RuleFor(p => p.Phone, f => f.Phone.PhoneNumber())
-                .RuleFor(p => p.Gender, f => f.PickRandom(new[] { "Male", "Female", "Other" }))
-                .RuleFor(p => p.Company, f => f.Company.CompanyName())
-                .RuleFor(p => p.JobTitle, f => f.Name.JobTitle())
-                .RuleFor(p => p.CreditCardNumber, f => f.Finance.CreditCardNumber())
-                .RuleFor(p => p.Street, f => f.Address.StreetName())
-                .RuleFor(p => p.StreetNumber, f => f.Address.SecondaryAddress())
-                .RuleFor(p => p.City, f => f.Address.City())
-                .RuleFor(p => p.County, f => f.Address.County())
-                .RuleFor(p => p.State, f => f.Address.State())
-                .RuleFor(p => p.ZipCode, f => f.Address.ZipCode())
-                .RuleFor(p => p.Country, f => f.Address.Country());
+            var f = new Faker("en");
+            var pf = new Faker<Person>("en")
+                .RuleFor(p => p.Title, _ => f.Name.Prefix())
+                .RuleFor(p => p.FirstName, _ => f.Name.FirstName())
+                .RuleFor(p => p.LastName, _ => f.Name.LastName())
+                .RuleFor(p => p.Email, _ => f.Internet.Email())
+                .RuleFor(p => p.Phone, _ => f.Phone.PhoneNumber())
+                .RuleFor(p => p.Gender, _ => f.PickRandom(new[] { "Male", "Female", "Other" }))
+                .RuleFor(p => p.Company, _ => f.Company.CompanyName())
+                .RuleFor(p => p.JobTitle, _ => f.Name.JobTitle())
+                .RuleFor(p => p.CreditCardNumber, _ => f.Finance.CreditCardNumber())
+                .RuleFor(p => p.Street, _ => f.Address.StreetName())
+                .RuleFor(p => p.StreetNumber, _ => f.Address.SecondaryAddress())
+                .RuleFor(p => p.City, _ => f.Address.City())
+                .RuleFor(p => p.County, _ => f.Address.County())
+                .RuleFor(p => p.State, _ => f.Address.State())
+                .RuleFor(p => p.ZipCode, _ => f.Address.ZipCode())
+                .RuleFor(p => p.Country, _ => f.Address.Country());
 
-            return personFaker.Generate();
+            return pf.Generate();
         }
     }
 }
