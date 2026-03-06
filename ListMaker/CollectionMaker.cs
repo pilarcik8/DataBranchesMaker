@@ -93,7 +93,6 @@ namespace CollectionMaker
                     GetRemainingActions(ElementAction.SHIFT) +
                     GetRemainingActions(ElementAction.ADDITION);
 
-                ChangeLogWriteHead(leftKeepProbability, iteration, startingNumberOfMods);
                 int leftModificationCount = 0;
                 int rightModificationCount = 0;
 
@@ -179,19 +178,13 @@ namespace CollectionMaker
                 // Ak nezalezi na poradi, exportujeme ako sety
                 else
                 {
-                    HashSet<string> leftSet = new HashSet<string>(Shuffle(LeftList), StringComparer.Ordinal);
-                    HashSet<string> rightSet = new HashSet<string>(Shuffle(RightList), StringComparer.Ordinal);
-                    HashSet<string> baseSet = new HashSet<string>(Shuffle(BaseList), StringComparer.Ordinal);
-                    HashSet<string> resultSet = new HashSet<string>(Shuffle(ResultList), StringComparer.Ordinal);
-
-                    XMLOutput.Export(leftSet, "left", iteration, OutputDirectory);
-                    XMLOutput.Export(rightSet, "right", iteration, OutputDirectory);
-                    XMLOutput.Export(baseSet, "base", iteration, OutputDirectory);
-                    XMLOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
+                    ExportAsSet(iteration, true); // TODO: shuffle volitelny - gui
                 }
                 // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
+
                 Directory.CreateDirectory(iterationDir);
+                ChangeLogText = WriteHeadForChangeLog(leftKeepProbability, iteration, startingNumberOfMods) + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
         }
@@ -215,23 +208,56 @@ namespace CollectionMaker
             RightList = new List<string>(ResultList);
         }
 
-        private static void ChangeLogWriteHead(double leftKeepProbability, int iteration, int startingNumberOfMods)
+        private static string WriteHeadForChangeLog(double leftKeepProbability, int iteration, int startingNumberOfMods)
         {
-            ChangeLogText += $"Allowed Actions: ";
-            if (AllowRemove) ChangeLogText += "Remove ";
-            if (AllowAdd) ChangeLogText += "Add ";
-            if (AllowShift) ChangeLogText += "Shift ";
-            ChangeLogText += "\n";
-            ChangeLogText += $"Max Allowed Actions: Remove: {MaxAllowedRemovals}, Add: {MaxAllowedAdditions}, Shift: {MaxAllowedShifts}\n";
+            string head = "Allowed Actions: ";
+            if (AllowRemove) head += "Remove ";
+            if (AllowAdd) head += "Add ";
+            if (AllowShift) head += "Shift ";
+            head += "\n";
+
+            head += "Max Allowed Actions: ";
+            if (AllowRemove) head += $" Remove: {MaxAllowedRemovals} ";
+            if (AllowAdd) head += $"Add: {MaxAllowedAdditions} ";
+            if (AllowShift) head += $"Shift: {MaxAllowedShifts} ";
+            head += "\n";
+
+            head += "Total modifications: ";
+            if (AllowRemove) head += $"Removals: {MadeRemovals} ";
+            if (AllowAdd) head += $"Additions: {MadeAdditions} ";
+            if (AllowShift) head += $"Shifts: {MadeShifts} ";
+            head += "\n\n";
 
             if (startingNumberOfMods == 2)
             {
-                ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
+                head += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
             }
             else
             {
-                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
+                head += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
             }
+            return head;
+        }
+
+        private static void ExportAsSet(int iteration, bool shuffle)
+        {
+            if (shuffle)
+            {
+                LeftList = Shuffle(LeftList);
+                RightList = Shuffle(RightList);
+                BaseList = Shuffle(BaseList);
+                ResultList = Shuffle(ResultList);
+            }
+
+            HashSet<string> leftSet = new HashSet<string>(LeftList, StringComparer.Ordinal);
+            HashSet<string> rightSet = new HashSet<string>(RightList, StringComparer.Ordinal);
+            HashSet<string> baseSet = new HashSet<string>(BaseList, StringComparer.Ordinal);
+            HashSet<string> resultSet = new HashSet<string>(ResultList, StringComparer.Ordinal);
+
+            XMLOutput.Export(leftSet, "left", iteration, OutputDirectory);
+            XMLOutput.Export(rightSet, "right", iteration, OutputDirectory);
+            XMLOutput.Export(baseSet, "base", iteration, OutputDirectory);
+            XMLOutput.Export(resultSet, "expectedResult", iteration, OutputDirectory);
         }
 
         private static List<string> CreateStartingList(Faker faker, int elementCount)
@@ -250,7 +276,7 @@ namespace CollectionMaker
         }
 
         // Fisher–Yates algoritmus pre náhodné premiešanie prvkov v zozname
-        public static List<string> Shuffle(List<string> list)
+        private static List<string> Shuffle(List<string> list)
         {
             if (OrderMatters) throw new InvalidOperationException("Cannot shuffle list when order matters.");
 
@@ -276,7 +302,7 @@ namespace CollectionMaker
                 if (OrderMatters)
                 {
                     NextWillBeKeep = true;
-                    ChangeLogText += $"Removing item: '{item}' at base index: {baseIndex} and branch index: {branchIndex}\n";
+                    ChangeLogText += $"Removing item: '{item}' at base index: '{baseIndex}' and branch index: '{branchIndex}'\n";
                 }
                 else
                 {
@@ -348,7 +374,7 @@ namespace CollectionMaker
                 var itemBeforeBase = baseList[baseIndex - 1];
                 var itemBeforeBranch = branchList[branchIndex - 1];
 
-                ChangeLogText += $"Shifting element: '{item}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex} behind element Base:'{itemBeforeBase}''\n";
+                ChangeLogText += $"Shifting element: '{item}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex} behind element Base:'{itemBeforeBase}'\n";
                 MadeShifts++;
 
                 // dalsí element sa nezmie modifikovať, lebo nastane rovnaký problém ako keď odstránime 2 prvky idúce za sebou vo vedlajsich vetviach (nedeterministicke poradie)
@@ -368,7 +394,7 @@ namespace CollectionMaker
             return word;
         }
 
-        public static ElementAction ChooseAction(List<string> branchList, int remainingPositions)
+        private static ElementAction ChooseAction(List<string> branchList, int remainingPositions)
         {
             // Ak nastane REMOVE, ďalšia akcia musí byť KEEP
             if (NextWillBeKeep)
@@ -429,7 +455,7 @@ namespace CollectionMaker
             return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ElementAction.KEEP;
         }
 
-        public static int GetRemainingActions(ElementAction action)
+        private static int GetRemainingActions(ElementAction action)
         {
             return action switch
             {
@@ -441,7 +467,7 @@ namespace CollectionMaker
             };
         }
 
-        public static bool CanBeActionExecuted(ElementAction action, List<string> baseList, List<string> branchList)
+        private static bool CanBeActionExecuted(ElementAction action, List<string> baseList, List<string> branchList)
         {
             if (GetRemainingActions(action) == 0)
             {
@@ -468,7 +494,7 @@ namespace CollectionMaker
             return true;
         }
 
-        public static bool ShouldNextActionBeKeep(int remainingPositions)
+        private static bool ShouldNextActionBeKeep(int remainingPositions)
         {
             int remaningAdd = GetRemainingActions(ElementAction.ADDITION);
             int remaningShift = GetRemainingActions(ElementAction.SHIFT);
@@ -530,7 +556,7 @@ namespace CollectionMaker
             return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
         }
 
-        public static bool TestingOneActionOnce()
+        private static bool TestingOneActionOnce()
         {
             int allowed = 0;
             if (AllowAdd) allowed++;
@@ -542,7 +568,7 @@ namespace CollectionMaker
             return MaxActionsSum() == 1;
         }
 
-        public static bool TestingOneActionTwice()
+        private static bool TestingOneActionTwice()
         {
             int allowed = 0;
             if (AllowAdd) allowed++;
@@ -554,9 +580,9 @@ namespace CollectionMaker
             return MaxActionsSum() == 2;
         }
 
-        public static int MaxActionsSum()
+        private static long MaxActionsSum()
         {
-            int allowedNumberOfActions = 0;
+            long allowedNumberOfActions = 0;
             allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
             allowedNumberOfActions += AllowShift ? MaxAllowedShifts : 0;
             allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
