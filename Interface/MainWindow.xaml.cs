@@ -1,7 +1,8 @@
 ﻿using System.Windows;
-using CollectionMaker = CollectionMaker.CollectionMaker;
 using PeopleMaker = PersonMaker.PersonMaker;
-    
+using ListsMaker = ListMaker.ListMaker;
+using SetMaker = SetMaker.SetMaker;
+
 namespace Interface
 {
     public partial class MainWindow : Window
@@ -272,26 +273,25 @@ namespace Interface
                                 return;
                             }
                         }
-
-                        global::CollectionMaker.CollectionMaker.SetParameters(
+                        
+                        ListsMaker.SetParameters(
                             numberIterations: iteration,
                             removingAllowed: listAllowRemove,
                             addingAllowed: listAllowAdd,
                             allowShifts: listAllowShift,
                             outputDirectory: folder,
                             minResultSize: min!.Value,
-                            maxResultSize: max!.Value,
-                            orderMatters: true // pre list poradie záleží, takže true
+                            maxResultSize: max!.Value
                         );
 
-                        global::CollectionMaker.CollectionMaker.SetAllowedMax(
+                        ListsMaker.SetAllowedMax(
                             maxRemovals: listMaxRemovals,
                             maxAdditions: listMaxAdditions,
                             maxShifts: listMaxShifts
                         );
 
-                        global::CollectionMaker.CollectionMaker.Main();
-
+                        ListsMaker.Main();
+                        
                         StatusTextBlock.Text = $"Exported List<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;
 
@@ -320,27 +320,25 @@ namespace Interface
                                 return;
                             }
                         }
-
-                        global::CollectionMaker.CollectionMaker.SetParameters(
+                        /*
+                        SetsMaker.SetParameters(
                             numberIterations: iteration,
                             removingAllowed: setAllowRemove,
                             addingAllowed: setAllowAdd,
                             allowShifts: false, // pre set poradie nezáleží, takže false
                             outputDirectory: folder,
                             minResultSize: min!.Value,
-                            maxResultSize: max!.Value,
-                            orderMatters: false // pre set poradie nezáleží, takže false
-
+                            maxResultSize: max!.Value
+                            shuffle: 
                         );
 
-                        global::CollectionMaker.CollectionMaker.SetAllowedMax(
+                        SetsMaker.SetAllowedMax(
                             maxRemovals: setMaxRemovals,
-                            maxAdditions: setMaxAdditions,
-                            maxShifts: 0 // pro set posuny nedávame povolené, takže 0
+                            maxAdditions: setMaxAdditions
                         );
 
-                        global::CollectionMaker.CollectionMaker.Main();
-
+                        SetsMaker.Main();
+                        */
                         StatusTextBlock.Text = $"Exported HashSet<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;
 
