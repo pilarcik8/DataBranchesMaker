@@ -290,7 +290,7 @@ namespace Interface
                             maxShifts: listMaxShifts
                         );
 
-                        global::CollectionMaker.CollectionMaker.Run();
+                        global::CollectionMaker.CollectionMaker.Main();
 
                         StatusTextBlock.Text = $"Exported List<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;
@@ -339,7 +339,7 @@ namespace Interface
                             maxShifts: 0 // pro set posuny nedávame povolené, takže 0
                         );
 
-                        global::CollectionMaker.CollectionMaker.Run();
+                        global::CollectionMaker.CollectionMaker.Main();
 
                         StatusTextBlock.Text = $"Exported HashSet<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;

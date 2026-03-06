@@ -1,6 +1,8 @@
 ﻿using Bogus;
 using Microsoft.VisualBasic;
 using Shared;
+using System;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
@@ -40,11 +42,14 @@ namespace CollectionMaker
 
         public static string ActualElement = string.Empty;
 
-        // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP, inak merger nerozozna poradie prvkov
+        // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP
+        // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie = xmldiff nahodne vyberie ale sharpdifflib oznaci ako konflikt
         public static bool NextWillBeKeep = false;
 
         // True = poradie záleží (List), False = poradie nezáleží (Set)
         public static bool OrderMatters = true;
+
+        public static HashSet<string> UsedShiftItems = new HashSet<string>();
 
         public static List<string> ResultList = new List<string>();
         public static List<string> RightList = new List<string>();
@@ -72,11 +77,8 @@ namespace CollectionMaker
 
         public static void Main()
         {
-            StartListOutputTest();
-        }
+            bool writeSteps = true; // todo: gui
 
-        public static void Run()
-        {
             var faker = new Faker();
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
@@ -86,6 +88,7 @@ namespace CollectionMaker
                 MadeShifts = 0;
 
                 ChangeLogText = string.Empty;
+                UsedShiftItems.Clear();
 
                 int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
@@ -126,6 +129,15 @@ namespace CollectionMaker
                 // Akcie sa vyberu a rovno vykonaju
                 for (int i = 0; i < elementCount; i++)
                 {
+                    var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
+                    var pathToStepsL = Path.Combine(pathToSteps, "left");
+                    var pathToStepsR = Path.Combine(pathToSteps, "right");
+                    var pathToStepsB = Path.Combine(pathToSteps, "base");
+
+                    string l = "left_step" + i;
+                    string r = "right_step" + i;
+                    string b = "base_step" + i;
+
                     var item = ResultList[i];
                     int remainingPositions = elementCount - i;
                     ActualElement = item;
@@ -165,6 +177,11 @@ namespace CollectionMaker
                         ChangeLogText += message + "\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                         rightModificationCount++;
+                        if (writeSteps)
+                        {
+                            XMLOutput.Export(RightList, r, null, pathToStepsR);
+                            XMLOutput.Export(BaseList, b, null, pathToStepsB);
+                        }
                     }
                     else if (rightAct == ElementAction.KEEP)
                     {
@@ -172,6 +189,11 @@ namespace CollectionMaker
                         ChangeLogText += message + "\n";
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
                         leftModificationCount++;
+                        if (writeSteps)
+                        {
+                            XMLOutput.Export(LeftList, l, null, pathToStepsL);
+                            XMLOutput.Export(BaseList, b, null, pathToStepsB);
+                        }
                     }
                 }
 
@@ -215,7 +237,6 @@ namespace CollectionMaker
                     list.Add(value);
                 }
             }
-
             return list;
         }
 
@@ -279,55 +300,50 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.SHIFT)
             {
-                int index = baseList.IndexOf(item);
+                UsedShiftItems.Add(item);
+                int elementAtBaseIndex = baseList.IndexOf(item);
 
-                var otherBranch = branchList == LeftList ? RightList : LeftList;
-
-                int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count);
-
-                if (TestingOneActionTwice())
+                // výmena (swap) susediacich elementov spolu s dalším shiftom môže spôsobiť poradie elementov ktoré sa nedá nájť deteminicky
+                if (!TestingOneActionOnce())
                 {
-                    // ujistime sa ze bude miesto pre dalsi shift
-                    if (MadeShifts == 0) top /= 2;
-                }
-                var rnd = Random.Shared.Next(index + 1, top - 1);
-                bool found = false;
-
-                int attempts = 0;
-                while ((baseList[rnd] != branchList[rnd] || otherBranch[rnd] != baseList[rnd]) &&
-                    (baseList[rnd + 1] != branchList[rnd + 1] || otherBranch[rnd + 1] != baseList[rnd + 1]))
-                {
-                    if (attempts == 20) break;
-
-                    rnd = Random.Shared.Next(index + 1, top - 1);
-                    attempts++;
-                }
-                if (attempts == 20)
-                {
-                    for (int i = index + 1; i < top; i++)
+                    if (elementAtBaseIndex > 0)
                     {
-                        if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i])
-                        {
-                            rnd = i;
-                            found = true;
-                            break;
-                        }
+                        UsedShiftItems.Add(baseList[elementAtBaseIndex - 1]);
+                    }
+                    if (elementAtBaseIndex < baseList.Count - 1)
+                    {
+                        UsedShiftItems.Add(baseList[elementAtBaseIndex + 1]);
                     }
                 }
-                else
-                {
-                    found = true;
+                var baseListExceptDangerousTargets = new List<string>(baseList).Except(UsedShiftItems);
+                var targetItem = baseListExceptDangerousTargets.ElementAt(Random.Shared.Next(baseListExceptDangerousTargets.Count()));
+                while (!branchList.Contains(targetItem)) {
+                    targetItem = baseListExceptDangerousTargets.ElementAt(Random.Shared.Next(baseListExceptDangerousTargets.Count()));
                 }
 
-                if (!found) throw new Exception("not found index to land on Shift");
+                int oldBaseIndex = baseList.IndexOf(item);
+                int oldBranchIndex = branchList.IndexOf(item);
+
+                UsedShiftItems.Add(targetItem);
 
                 baseList.Remove(item);
                 branchList.Remove(item);
-                baseList.Insert(rnd, item);
-                branchList.Insert(rnd, item);
 
-                ChangeLogText += $"Shifting item: '{item}' from index {index} to '{rnd}'\n";
+                //uložíme item za targetItem
+                int baseIndex = baseList.IndexOf(targetItem) + 1;
+                int branchIndex = branchList.IndexOf(targetItem) + 1;
+
+                baseList.Insert(baseIndex, item);
+                branchList.Insert(branchIndex, item);
+
+                var itemBeforeBase = baseList[baseIndex - 1];
+                var itemBeforeBranch = branchList[branchIndex - 1];
+
+                ChangeLogText += $"Shifting element: '{item}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex} behind element Base:'{itemBeforeBase}''\n";
                 MadeShifts++;
+
+                // dalsí element sa nezmie modifikovať, lebo nastane rovnaký problém ako keď odstránime 2 prvky idúce za sebou vo vedlajsich vetviach (nedeterministicke poradie)
+                NextWillBeKeep = true;
             }
         }
 
@@ -437,27 +453,8 @@ namespace CollectionMaker
 
             if (action == ElementAction.SHIFT)
             {
-                var otherBranch = branchList == LeftList ? RightList : LeftList;
-                // je posledný element?
-                if (baseList.IndexOf(ActualElement) >= baseList.Count - 2 ||
-                    branchList.IndexOf(ActualElement) >= branchList.Count - 2 ||
-                    otherBranch.IndexOf(ActualElement) >= otherBranch.Count - 2) return false;
-
-                // rovnaká pozícia v zoznamoch?
-                if (baseList.IndexOf(ActualElement) != branchList.IndexOf(ActualElement) ||
-                    baseList.IndexOf(ActualElement) != otherBranch.IndexOf(ActualElement)) return false;
-
-                int top = Math.Min(Math.Min(baseList.Count, branchList.Count), otherBranch.Count) - 1;
-                for (int i = baseList.IndexOf(ActualElement) + 1; i < top; i++)
-                {
-                    if (baseList[i] == branchList[i] && otherBranch[i] == baseList[i])
-                    {
-                        // skúsiť posun o dve pozície aby sa predišlo opakovaniu na rovnakom mieste
-                        if (baseList[i + 1] != branchList[i + 1] || otherBranch[i + 1] != baseList[i + 1]) continue;
-                        return true;
-                    }
-                }
-                return false;
+                if (UsedShiftItems.Contains(ActualElement)) return false;
+                if (BaseList.Count - 1 - UsedShiftItems.Count <= 3) return false;
             }
             return true;
         }
@@ -555,140 +552,6 @@ namespace CollectionMaker
             allowedNumberOfActions += AllowShift ? MaxAllowedShifts : 0;
             allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
             return allowedNumberOfActions;
-        }
-
-        // METÓDY PRE TESTOVANIE
-        private static void StartListOutputTest()
-        {
-            Console.WriteLine("Zadaj cestu k expectedResult súboru");
-            string filePath = Console.ReadLine().Trim('"');
-
-            while (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-            {
-                Console.WriteLine("Súbor neexistuje, skúste znova");
-                filePath = Console.ReadLine().Trim('"');
-            }
-
-            List<string> expectedResult = CreateListFromXml(filePath);
-            if (expectedResult.Count == 0)
-            {
-                Console.WriteLine("Bud prázdny alebo nie validný xml súbor - list/set so stringami");
-                return;
-            }
-
-            var rightList = new List<string>(expectedResult);
-            var leftList = new List<string>(expectedResult);
-            var baseList = new List<string>(expectedResult);
-
-            Console.WriteLine("Zadajte cestu k changeLog súboru");
-            string changeLogPath = Console.ReadLine().Trim('"');
-
-            while (string.IsNullOrWhiteSpace(changeLogPath) || !File.Exists(changeLogPath))
-            {
-                Console.WriteLine("Súbor neexistuje, skúste znova");
-                changeLogPath = Console.ReadLine().Trim('"');
-            }
-
-            string[] changeLogLines = File.ReadAllLines(changeLogPath, Encoding.UTF8);
-
-            for (int line = 4; line < changeLogLines.Length; line += 2)
-            {
-                List<string> branchList;
-
-                if (changeLogLines[line].Trim() == "L, R, B:")
-                {
-                    continue;
-                }
-                else if (changeLogLines[line].Trim() == "L, B:")
-                {
-                    branchList = leftList;
-                }
-                else if (changeLogLines[line].Trim() == "R, B:")
-                {
-                    branchList = rightList;
-                }
-                else
-                {
-                    throw new Exception("Problem s citanim vetvi");
-                }
-
-                string actionText = changeLogLines[line + 1].Trim();
-                if (actionText.Contains("Keeping"))
-                {
-                    continue;
-                }
-                else if (actionText.Contains("Removing"))
-                {
-                    Match match = Regex.Match(actionText, @"Removing item:\s*'([^']+)'");
-
-                    if (!match.Success) throw new Exception("Nenajdena hodnota pri Remove");
-
-                    string item = match.Groups[1].Value;
-
-                    branchList.Remove(item);
-                    baseList.Remove(item);
-                }
-                else if (actionText.Contains("Shifting"))
-                {
-                    Match match = Regex.Match(actionText, @"Shifting item:\s*'([^']+)'.*to\s*'(\d+)'");
-
-                    if (!match.Success) throw new Exception("Nenajdena hodnota pri Shifting");
-
-                    string item = match.Groups[1].Value;
-                    int newIndex = int.Parse(match.Groups[2].Value);
-
-                    baseList.Remove(item);
-                    branchList.Remove(item);
-                    baseList.Insert(newIndex, item);
-                    branchList.Insert(newIndex, item);
-
-                }
-                else if (actionText.Contains("Adding"))
-                {
-                    Match match = Regex.Match(actionText, @"Adding item:\s*'([^']+)'.*base index:\s*'(\d+)'.*branch index:\s*'(\d+)'");
-
-                    if (!match.Success) throw new Exception("Nenajdena hodnota pri Adding");
-
-                    string newItem = match.Groups[1].Value;
-                    int baseIndex = int.Parse(match.Groups[2].Value);
-                    int branchIndex = int.Parse(match.Groups[3].Value);
-
-                    baseList.Insert(baseIndex, newItem);
-                    branchList.Insert(branchIndex, newItem);
-                }
-                else
-                {
-                    throw new Exception("Neznama akcia v changelogu alebo chyba pri citani");
-                }
-            }
-            XMLOutput.Export(leftList, "left", 0, OutputDirectory);
-            XMLOutput.Export(rightList, "right", 0, OutputDirectory);
-            XMLOutput.Export(baseList, "base", 0, OutputDirectory);
-        }
-
-        private static List<string> CreateListFromXml(string xmlPath)
-        {
-            if (string.IsNullOrWhiteSpace(xmlPath)) throw new ArgumentException("xmlPath is null or empty.", nameof(xmlPath));
-            if (!File.Exists(xmlPath)) throw new FileNotFoundException("XML file not found.", xmlPath);
-
-            string xml = File.ReadAllText(xmlPath, Encoding.UTF8);
-
-            try
-            {
-                var serializer = new XmlSerializer(typeof(List<string>));
-                using (var reader = new StringReader(xml))
-                {
-                    if (serializer.Deserialize(reader) is List<string> list)
-                    {
-                        return list;
-                    }
-                }
-                return new List<string>();
-            }
-            catch
-            {
-                return new List<string>();
-            }
         }
     }
 }
