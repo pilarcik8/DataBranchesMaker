@@ -1,4 +1,5 @@
 ﻿using Bogus;
+using Bogus.DataSets;
 using Microsoft.VisualBasic;
 using Shared;
 using System;
@@ -82,47 +83,17 @@ namespace CollectionMaker
             var faker = new Faker();
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
-                // Inicializácia
-                MadeAdditions = 0;
-                MadeRemovals = 0;
-                MadeShifts = 0;
-
-                ChangeLogText = string.Empty;
-                UsedShiftItems.Clear();
-
-                int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
-
-                ResultList = CreateStartingList(faker, elementCount);
-                RightList = new List<string>(ResultList);
-                LeftList = new List<string>(ResultList);
-                BaseList = new List<string>(ResultList);
-                RightList = new List<string>(ResultList);
-
+                Init(faker);
+                var elementCount = ResultList.Count;
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                ChangeLogText += $"Allowed Actions: ";
-                if (AllowRemove) ChangeLogText += "Remove ";
-                if (AllowAdd) ChangeLogText += "Add ";
-                if (AllowShift) ChangeLogText += "Shift ";
-                ChangeLogText += "\n";
-                ChangeLogText += $"Max Allowed Actions: Remove: {MaxAllowedRemovals}, Add: {MaxAllowedAdditions}, Shift: {MaxAllowedShifts}\n";
 
-                int startingNumberOfMOds = 
+                int startingNumberOfMods =
                     GetRemainingActions(ElementAction.REMOVAL) +
                     GetRemainingActions(ElementAction.SHIFT) +
                     GetRemainingActions(ElementAction.ADDITION);
 
-                if (startingNumberOfMOds == 2)
-                {
-                    leftKeepProbability = 0.5;
-                    rightKeepProbability = 0.5;
-                    ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
-                }
-                else
-                {
-                    ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
-                }
-
+                ChangeLogWriteHead(leftKeepProbability, iteration, startingNumberOfMods);
                 int leftModificationCount = 0;
                 int rightModificationCount = 0;
 
@@ -145,11 +116,11 @@ namespace CollectionMaker
                     string message;
 
                     bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
-                    if (startingNumberOfMOds == 2 && leftModificationCount > 0)
+                    if (startingNumberOfMods == 2 && leftModificationCount > 0)
                     {
                         leftIsKeep = true;
                     }
-                    else if (startingNumberOfMOds == 2 && rightModificationCount > 0)
+                    else if (startingNumberOfMods == 2 && rightModificationCount > 0)
                     {
                         leftIsKeep = false;
                     }                     
@@ -222,6 +193,44 @@ namespace CollectionMaker
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
+            }
+        }
+
+        private static void Init(Faker faker)
+        {
+            // Inicializácia
+            MadeAdditions = 0;
+            MadeRemovals = 0;
+            MadeShifts = 0;
+
+            ChangeLogText = string.Empty;
+            UsedShiftItems.Clear();
+
+            int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
+
+            ResultList = CreateStartingList(faker, elementCount);
+            RightList = new List<string>(ResultList);
+            LeftList = new List<string>(ResultList);
+            BaseList = new List<string>(ResultList);
+            RightList = new List<string>(ResultList);
+        }
+
+        private static void ChangeLogWriteHead(double leftKeepProbability, int iteration, int startingNumberOfMods)
+        {
+            ChangeLogText += $"Allowed Actions: ";
+            if (AllowRemove) ChangeLogText += "Remove ";
+            if (AllowAdd) ChangeLogText += "Add ";
+            if (AllowShift) ChangeLogText += "Shift ";
+            ChangeLogText += "\n";
+            ChangeLogText += $"Max Allowed Actions: Remove: {MaxAllowedRemovals}, Add: {MaxAllowedAdditions}, Shift: {MaxAllowedShifts}\n";
+
+            if (startingNumberOfMods == 2)
+            {
+                ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
+            }
+            else
+            {
+                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
             }
         }
 
