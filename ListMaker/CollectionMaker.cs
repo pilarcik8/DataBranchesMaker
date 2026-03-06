@@ -2,6 +2,7 @@
 using Microsoft.VisualBasic;
 using Shared;
 using System;
+using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
@@ -76,11 +77,8 @@ namespace CollectionMaker
 
         public static void Main()
         {
-            Run();
-        }
+            bool writeSteps = true; // todo: gui
 
-        public static void Run()
-        {
             var faker = new Faker();
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
@@ -131,9 +129,14 @@ namespace CollectionMaker
                 // Akcie sa vyberu a rovno vykonaju
                 for (int i = 0; i < elementCount; i++)
                 {
-                    string l = "left_debug" + i + "_";
-                    string r = "right_debug_" + i + "_";
-                    string b = "base_debug_" + i + "_";
+                    var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
+                    var pathToStepsL = Path.Combine(pathToSteps, "left");
+                    var pathToStepsR = Path.Combine(pathToSteps, "right");
+                    var pathToStepsB = Path.Combine(pathToSteps, "base");
+
+                    string l = "left_step" + i;
+                    string r = "right_step" + i;
+                    string b = "base_step" + i;
 
                     var item = ResultList[i];
                     int remainingPositions = elementCount - i;
@@ -174,9 +177,11 @@ namespace CollectionMaker
                         ChangeLogText += message + "\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                         rightModificationCount++;
-                        /*
-                        XMLOutput.Export(RightList, r, iteration, OutputDirectory);
-                        XMLOutput.Export(BaseList, b, iteration, OutputDirectory);*/
+                        if (writeSteps)
+                        {
+                            XMLOutput.Export(RightList, r, null, pathToStepsR);
+                            XMLOutput.Export(BaseList, b, null, pathToStepsB);
+                        }
                     }
                     else if (rightAct == ElementAction.KEEP)
                     {
@@ -184,9 +189,11 @@ namespace CollectionMaker
                         ChangeLogText += message + "\n";
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
                         leftModificationCount++;
-                        /*
-                        XMLOutput.Export(LeftList, l, iteration, OutputDirectory);
-                        XMLOutput.Export(BaseList, b, iteration, OutputDirectory);*/
+                        if (writeSteps)
+                        {
+                            XMLOutput.Export(LeftList, l, null, pathToStepsL);
+                            XMLOutput.Export(BaseList, b, null, pathToStepsB);
+                        }
                     }
                 }
 
@@ -293,11 +300,10 @@ namespace CollectionMaker
             }
             else if (action == ElementAction.SHIFT)
             {
-                if (UsedShiftItems.Contains(item)) throw new Exception($"Item '{item}' has already been used for shifting. Cannot shift the same item multiple times.");
-
                 UsedShiftItems.Add(item);
                 int elementAtBaseIndex = baseList.IndexOf(item);
 
+                // výmena (swap) susediacich elementov spolu s dalším shiftom môže spôsobiť poradie elementov ktoré sa nedá nájť deteminicky
                 if (!TestingOneActionOnce())
                 {
                     if (elementAtBaseIndex > 0)
@@ -310,14 +316,11 @@ namespace CollectionMaker
                     }
                 }
                 var baseListExceptDangerousTargets = new List<string>(baseList).Except(UsedShiftItems);
-                var count = baseListExceptDangerousTargets.Count();
-                if (baseListExceptDangerousTargets.Count() == 0) throw new Exception("Žiadne mozne pozicie pre Shift");
-
                 var targetItem = baseListExceptDangerousTargets.ElementAt(Random.Shared.Next(baseListExceptDangerousTargets.Count()));
-
                 while (!branchList.Contains(targetItem)) {
                     targetItem = baseListExceptDangerousTargets.ElementAt(Random.Shared.Next(baseListExceptDangerousTargets.Count()));
                 }
+
                 int oldBaseIndex = baseList.IndexOf(item);
                 int oldBranchIndex = branchList.IndexOf(item);
 
@@ -333,17 +336,13 @@ namespace CollectionMaker
                 baseList.Insert(baseIndex, item);
                 branchList.Insert(branchIndex, item);
 
-                var itemBeforeBase = baseIndex > 0 ? baseList[baseIndex - 1] : "NOTHING - IS FIRST";
-                var itemBeforeBranch = branchIndex > 0 ? branchList[branchIndex - 1] : "NOTHING - IS FIRST";
-
-                if (itemBeforeBase != itemBeforeBranch)
-                {
-                    throw new Exception($"Nezhoda v poziciách po Shift: Base pred '{item}' je '{itemBeforeBase}', Branch pred '{item}' je '{itemBeforeBranch}'");
-                }
+                var itemBeforeBase = baseList[baseIndex - 1];
+                var itemBeforeBranch = branchList[branchIndex - 1];
 
                 ChangeLogText += $"Shifting element: '{item}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex} behind element Base:'{itemBeforeBase}''\n";
                 MadeShifts++;
-                ChangeLogText += $"Used shift items: {string.Join(", ", UsedShiftItems)}\n";
+
+                // dalsí element sa nezmie modifikovať, lebo nastane rovnaký problém ako keď odstránime 2 prvky idúce za sebou vo vedlajsich vetviach (nedeterministicke poradie)
                 NextWillBeKeep = true;
             }
         }
