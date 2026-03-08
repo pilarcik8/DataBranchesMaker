@@ -4,11 +4,25 @@ using System.Text;
 
 namespace SetMaker
 {
-    public enum SetAction
+    internal enum SetAction
     {
         KEEP,
         REMOVE,
         ADD
+    }
+
+    internal struct Step
+    {
+        public string name { get; }
+        public HashSet<string> listOfState { get; }
+        public string pathToExport { get; }
+
+        public Step(string name, HashSet<string> hashOfState, string pathToExport)
+        {
+            this.name = name;
+            this.listOfState = new HashSet<string>(hashOfState);
+            this.pathToExport = pathToExport;
+        }
     }
 
     public static class SetMaker
@@ -26,13 +40,15 @@ namespace SetMaker
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
         public static string ChangeLogText = "";
+        public static bool WriteSteps { get; set; } = false;
+        public static bool ShuffleBaseLeftRight { get; set; } = false;
         public static HashSet<string> BaseSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
         public static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
         public static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
         public static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
 
 
-        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize)
+        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle)
         {
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
@@ -40,6 +56,7 @@ namespace SetMaker
             AllowRemove = removingAllowed;
             AllowAdd = addingAllowed;
             OutputDirectory = outputDirectory;
+            ShuffleBaseLeftRight = shuffle;
         }
 
         public static void SetAllowedMax(int maxRemovals, int maxAdditions)
@@ -48,15 +65,19 @@ namespace SetMaker
             MaxAllowedAdditions = maxAdditions;
         }
 
+        public static void EnableWriteSteps(bool enable)
+        {
+            WriteSteps = enable;
+        }
+
         public static void Main()
         {
             var faker = new Faker();
-            MadeRemovals = 0;
-            MadeAdditions = 0;
-
             // Vytvorenie základneho (vysledkovy) setu
             for (int iteration = 0; iteration < Iterations; iteration++) // pocet skupin vetiev
             {
+                MadeRemovals = 0;
+                MadeAdditions = 0;
                 ChangeLogText = string.Empty;
                 int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
@@ -67,12 +88,25 @@ namespace SetMaker
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 double rightKeepProbability = 1.0 - leftKeepProbability;
-                ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
 
+                int leftModificationCount = 0;
+                int rightModificationCount = 0;
+                Stack<Step> steps = new Stack<Step>();
+
+                int i = 0;
                 foreach (string item in ResultSet)
                 {
+                    var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
+                    var pathToStepsL = Path.Combine(pathToSteps, "left");
+                    var pathToStepsR = Path.Combine(pathToSteps, "right");
+                    var pathToStepsB = Path.Combine(pathToSteps, "base");
+
+                    string leftStepName = "left_step" + i;
+                    string rightStepName = "right_step" + i;
+                    string baseStepName = "base_step" + i;
+
                     SetAction leftAct, rightAct;
-                    if (Random.Shared.NextDouble() > leftKeepProbability)
+                    if (Random.Shared.NextDouble() < leftKeepProbability)
                     {
                         leftAct = SetAction.KEEP;
                         rightAct = GetElementAction();
@@ -91,20 +125,47 @@ namespace SetMaker
                     else if (leftAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Right and Base\n";
+                        rightModificationCount++;
                         ExecuteAction(RightSet, BaseSet, item, rightAct, faker, iteration);
+                        if (WriteSteps)
+                        {
+                            steps.Push(new Step(rightStepName, RightSet, pathToStepsR));
+                            steps.Push(new Step(baseStepName, BaseSet, pathToStepsB));
+                        }
                     }
                     else if (rightAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Left and Base\n";
+                        leftModificationCount++;
                         ExecuteAction(LeftSet, BaseSet, item, leftAct, faker, iteration);
+                        if (WriteSteps)
+                        {
+                            steps.Push(new Step(leftStepName, LeftSet, pathToStepsL));
+                            steps.Push(new Step(baseStepName, BaseSet, pathToStepsB));
+                        }
                     }
-                    else
-                    {
-                        ChangeLogText += "Setmaker - nenašla sa vetva s KEEP akciou\nRA: " + rightAct.ToString() + "LA: " + leftAct.ToString() + "\n";
-                        return;
-                    }
+                    i++;
                 }
 
+                if (!ValidOutput(leftModificationCount, rightModificationCount))
+                {
+                    steps.Clear();
+                    iteration--;
+                    continue;
+                }
+
+                while (steps.Count > 0)
+                {
+                    var step = steps.Pop();
+                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
+                }
+
+                if (ShuffleBaseLeftRight)
+                {
+                    LeftSet = new HashSet<string>(Shuffle(LeftSet.ToList()), StringComparer.Ordinal);
+                    RightSet = new HashSet<string>(Shuffle(RightSet.ToList()), StringComparer.Ordinal);
+                    BaseSet = new HashSet<string>(Shuffle(BaseSet.ToList()), StringComparer.Ordinal);
+                }
                 XMLOutput.Export(LeftSet, "left", iteration, OutputDirectory);
                 XMLOutput.Export(RightSet, "right", iteration, OutputDirectory);
                 XMLOutput.Export(BaseSet, "base", iteration, OutputDirectory);
@@ -112,8 +173,18 @@ namespace SetMaker
 
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
+                ChangeLogText = WriteHeadForChangeLog(leftKeepProbability, iteration, leftModificationCount, rightModificationCount) + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
+        }
+
+        private static bool ValidOutput(int leftModificationCount, int rightModificationCount)
+        {
+            if (TestingOneActionOnce())
+            {
+                return (leftModificationCount + rightModificationCount == 1);
+            }
+            return (leftModificationCount > 0 && rightModificationCount > 0);
         }
 
         private static HashSet<string> MakeResultSet(int size, Faker faker)
@@ -133,7 +204,7 @@ namespace SetMaker
 
         private static void ExecuteAction(HashSet<string> branchSet, HashSet<string> baseSet, string item, SetAction action, Faker faker, int iteration)
         {
-            var messege = $"Action: {action} for item: {item}";
+            var messege = $"'{action}' for item: '{item}'";
             if (action == SetAction.REMOVE)
             {
                 baseSet.Remove(item);
@@ -154,7 +225,36 @@ namespace SetMaker
             ChangeLogText += messege + "\n";
         }
 
-        public static SetAction GetElementAction()
+        private static string WriteHeadForChangeLog(double leftKeepProbability, int iteration, int leftModsCount, int rightModsCount)
+        {
+            string head = "Allowed Actions: ";
+            if (AllowRemove) head += "Remove ";
+            if (AllowAdd) head += "Add ";
+            head += "\n";
+
+            head += "Max Allowed Actions: ";
+            if (AllowRemove) head += $" Remove: {MaxAllowedRemovals} ";
+            if (AllowAdd) head += $"Add: {MaxAllowedAdditions} ";
+            head += "\n";
+
+            head += "Total modifications: ";
+            if (AllowRemove) head += $"Removals: {MadeRemovals} ";
+            if (AllowAdd) head += $"Additions: {MadeAdditions} ";
+            head += "\n\n";
+
+            if (TestingOneActionTwice())
+            {
+                head += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
+            }
+            else
+            {
+                head += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
+            }
+            head += $"Number of modifications: Left: {leftModsCount}, Right: {rightModsCount}\n\n";
+            return head;
+        }
+
+        private static SetAction GetElementAction()
         {
             var allowed = new List<SetAction> { SetAction.KEEP };
 
@@ -180,6 +280,47 @@ namespace SetMaker
 
             int index = Random.Shared.Next(allowed.Count);
             return allowed[index];
+        }
+
+        // Fisher–Yates algoritmus pre náhodné premiešanie prvkov v zozname
+        private static List<string> Shuffle(List<string> list)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = Random.Shared.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            return list;
+        }
+
+        private static bool TestingOneActionOnce()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 1;
+        }
+
+        private static bool TestingOneActionTwice()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 2;
+        }
+
+        private static long MaxActionsSum()
+        {
+            long allowedNumberOfActions = 0;
+            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
+            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
+            return allowedNumberOfActions;
         }
     }
 }

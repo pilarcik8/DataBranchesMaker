@@ -5,7 +5,7 @@ using Person = Shared.Person;
 
 namespace PersonMaker
 {
-    public enum AtributeAction
+    internal enum AtributeAction
     {
         KEEP,
         CHANGE,
@@ -213,7 +213,7 @@ namespace PersonMaker
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
-        public static AtributeAction GetAtributeAction(int remainingPositions)
+        private static AtributeAction GetAtributeAction(int remainingPositions)
         {
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;

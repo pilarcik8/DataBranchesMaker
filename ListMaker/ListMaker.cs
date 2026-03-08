@@ -10,12 +10,26 @@ using System.Xml.Serialization;
 
 namespace ListMaker
 {
-    public enum ElementAction
+    internal enum ElementAction
     {
         KEEP,
         REMOVAL,
         ADDITION,
         SHIFT
+    }
+
+    internal struct Step
+    {
+        public string name { get; }
+        public List<string> listOfState { get; }
+        public string pathToExport { get; }
+
+        public Step(string name, List<string> listOfState, string pathToExport)
+        {
+            this.name = name;
+            this.listOfState = new List<string>(listOfState);
+            this.pathToExport = pathToExport;
+        }
     }
 
     public static class ListMaker
@@ -25,7 +39,7 @@ namespace ListMaker
         private static int MadeAdditions = 0;
         private static int MadeShifts = 0;
 
-        public static int Iterations { get; set; } = 5;
+        public static int EndIteration { get; set; } = 5;
         // Povolenie jednotlivých akcií
         public static bool AllowRemove { get; set; } = true;
         public static bool AllowAdd { get; set; } = true;
@@ -40,8 +54,7 @@ namespace ListMaker
         public static int MinResultSize { get; set; } = 10;
         public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
         public static string ChangeLogText = "";
-
-        public static string ActualElement = string.Empty;
+        public static bool WriteSteps { get; set; } = false;
 
         // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP
         // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie = xmldiff nahodne vyberie ale sharpdifflib oznaci ako konflikt
@@ -58,7 +71,7 @@ namespace ListMaker
         {
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
-            Iterations = numberIterations;
+            EndIteration = numberIterations;
             AllowRemove = removingAllowed;
             AllowAdd = addingAllowed;
             AllowShift = allowShifts;
@@ -72,25 +85,24 @@ namespace ListMaker
             MaxAllowedShifts = maxShifts;
         }
 
+        public static void EnableWriteSteps(bool enable)
+        {
+            WriteSteps = enable;
+        }
+
         public static void Main()
         {
-            bool writeSteps = true; // todo: gui
-
             var faker = new Faker();
-            for (int iteration = 0; iteration < Iterations; iteration++)
+            for (int iteration = 0; iteration < EndIteration; iteration++)
             {
                 Init(faker);
-                var elementCount = ResultList.Count;
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
-                double rightKeepProbability = 1.0 - leftKeepProbability;
-
-                int startingNumberOfMods =
-                    GetRemainingNumberOfUsesOfAction(ElementAction.REMOVAL) +
-                    GetRemainingNumberOfUsesOfAction(ElementAction.SHIFT) +
-                    GetRemainingNumberOfUsesOfAction(ElementAction.ADDITION);
 
                 int leftModificationCount = 0;
                 int rightModificationCount = 0;
+
+                Stack<Step> steps = new Stack<Step>();
+                int elementCount = ResultList.Count;
 
                 // Akcie sa vyberu a rovno vykonaju
                 for (int i = 0; i < elementCount; i++)
@@ -100,73 +112,60 @@ namespace ListMaker
                     var pathToStepsR = Path.Combine(pathToSteps, "right");
                     var pathToStepsB = Path.Combine(pathToSteps, "base");
 
-                    string l = "left_step" + i;
-                    string r = "right_step" + i;
-                    string b = "base_step" + i;
+                    string leftStepName = "left_step" + i;
+                    string rightStepName = "right_step" + i;
+                    string baseStepName = "base_step" + i;
 
                     var item = ResultList[i];
                     int remainingPositions = elementCount - i;
-                    ActualElement = item;
-                    ElementAction leftAct, rightAct;
-                    string message;
 
-                    bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
-                    if (startingNumberOfMods == 2 && leftModificationCount > 0)
-                    {
-                        leftIsKeep = true;
-                    }
-                    else if (startingNumberOfMods == 2 && rightModificationCount > 0)
-                    {
-                        leftIsKeep = false;
-                    }                     
-
-                    if (leftIsKeep)
-                    {
-                        leftAct = ElementAction.KEEP;
-                        rightAct = ChooseAction(RightList, remainingPositions);
-                    }
-                    else
-                    {
-                        leftAct = ChooseAction(LeftList, remainingPositions);
-                        rightAct = ElementAction.KEEP;
-                    }
+                    (ElementAction, ElementAction) leftAndRightAction = ChooseLeftRightAction(leftModificationCount, rightModificationCount, leftKeepProbability, remainingPositions, item);
+                    ElementAction leftAct = leftAndRightAction.Item1;
+                    ElementAction rightAct = leftAndRightAction.Item2;
 
                     if (leftAct == ElementAction.KEEP && rightAct == ElementAction.KEEP)
                     {
-                        message = "L, R, B:";
-                        ChangeLogText += message + "\n";
+                        ChangeLogText += "L, R, B:\n";
+                        // či dám left/right nezalezi
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == ElementAction.KEEP)
                     {
-                        message = "R, B:";
-                        ChangeLogText += message + "\n";
+                        ChangeLogText += "R, B:\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                         rightModificationCount++;
-                        if (writeSteps)
+                        if (WriteSteps)
                         {
-                            XMLOutput.Export(RightList, r, null, pathToStepsR);
-                            XMLOutput.Export(BaseList, b, null, pathToStepsB);
+                            steps.Push(new Step(rightStepName, RightList, pathToStepsR));
+                            steps.Push(new Step(baseStepName, BaseList, pathToStepsB));
                         }
                     }
                     else if (rightAct == ElementAction.KEEP)
                     {
-                        message = "L, B:";
-                        ChangeLogText += message + "\n";
+                        ChangeLogText += "L, B:\n";
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
                         leftModificationCount++;
-                        if (writeSteps)
+                        if (WriteSteps)
                         {
-                            XMLOutput.Export(LeftList, l, null, pathToStepsL);
-                            XMLOutput.Export(BaseList, b, null, pathToStepsB);
+                            steps.Push(new Step(leftStepName, LeftList, pathToStepsL));
+                            steps.Push(new Step(baseStepName, BaseList, pathToStepsB));
                         }
                     }
                 }
-                // TODO: kroky uplne prepisne nebudu, oprav
-                if ((leftModificationCount == 0 || rightModificationCount == 0) && !TestingOneActionOnce())
+
+                // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
+                if (!ValidOutput(leftModificationCount, rightModificationCount))
                 {
+                    steps.Clear();
                     iteration--;
                     continue;
+                }
+
+                // Export krokov - musi byt po ujisteni 3way merge, inak kroky stare + nove sa zmiesaju
+                while (steps.Count > 0)
+                {
+                    var step = steps.Pop();
+                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
                 }
 
                 XMLOutput.Export(LeftList, "left", iteration, OutputDirectory);
@@ -176,11 +175,46 @@ namespace ListMaker
                 
                 // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
-
                 Directory.CreateDirectory(iterationDir);
-                ChangeLogText = WriteHeadForChangeLog(leftKeepProbability, iteration, startingNumberOfMods, leftModificationCount, rightModificationCount) + ChangeLogText;
+                ChangeLogText = WriteHeadForChangeLog(leftKeepProbability, iteration, leftModificationCount, rightModificationCount) + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
+        }
+
+        private static bool ValidOutput(int leftModificationCount, int rightModificationCount)
+        {
+            if (TestingOneActionOnce())
+            {
+                return (leftModificationCount + rightModificationCount == 1);
+            }
+            return (leftModificationCount > 0 && rightModificationCount > 0);            
+        }
+
+        private static bool NextModificationLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
+        {
+            if (!TestingOneActionTwice()) return (Random.Shared.NextDouble() < leftKeepProbability);
+            
+            // chceme aby ked mame len 2 modifikacie, aby 1 bola na jeden a druha na druhej strne
+            if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
+            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
+
+            return (Random.Shared.NextDouble() < leftKeepProbability);
+        }
+
+        private static (ElementAction, ElementAction) ChooseLeftRightAction(int leftModificationCount, int rightModificationCount, double leftKeepProbability, int remainingPositions, string item) {
+            ElementAction leftAct, rightAct;
+
+            if (NextModificationLeft(leftModificationCount, rightModificationCount, leftKeepProbability))
+            {
+                leftAct = ElementAction.KEEP;
+                rightAct = ChooseAction(RightList, remainingPositions, item);
+            }
+            else
+            {
+                leftAct = ChooseAction(LeftList, remainingPositions, item);
+                rightAct = ElementAction.KEEP;
+            }
+            return (leftAct, rightAct);
         }
 
         private static void Init(Faker faker)
@@ -202,7 +236,7 @@ namespace ListMaker
             RightList = new List<string>(ResultList);
         }
 
-        private static string WriteHeadForChangeLog(double leftKeepProbability, int iteration, int startingNumberOfMods, int leftModsCount, int rightModsCount)
+        private static string WriteHeadForChangeLog(double leftKeepProbability, int iteration, int leftModsCount, int rightModsCount)
         {
             string head = "Allowed Actions: ";
             if (AllowRemove) head += "Remove ";
@@ -222,7 +256,7 @@ namespace ListMaker
             if (AllowShift) head += $"Shifts: {MadeShifts} ";
             head += "\n\n";
 
-            if (startingNumberOfMods == 2)
+            if (TestingOneActionTwice())
             {
                 head += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
             }
@@ -245,17 +279,6 @@ namespace ListMaker
                 {
                     list.Add(value);
                 }
-            }
-            return list;
-        }
-
-        // Fisher–Yates algoritmus pre náhodné premiešanie prvkov v zozname
-        private static List<string> Shuffle(List<string> list)
-        {
-            for (int i = list.Count - 1; i > 0; i--)
-            {
-                int j = Random.Shared.Next(i + 1);
-                (list[i], list[j]) = (list[j], list[i]);
             }
             return list;
         }
@@ -360,7 +383,7 @@ namespace ListMaker
             return word;
         }
 
-        private static ElementAction ChooseAction(List<string> branchList, int remainingPositions)
+        private static ElementAction ChooseAction(List<string> branchList, int remainingPositions, string actualElement)
         {
             int remAdd = GetRemainingNumberOfUsesOfAction(ElementAction.ADDITION);
             int remShift = GetRemainingNumberOfUsesOfAction(ElementAction.SHIFT);
@@ -370,9 +393,9 @@ namespace ListMaker
             if ((remainingMods == 2 && remainingPositions <= 2) || (remainingMods == 1 && remainingPositions <= 1))
             {
                 var forced = new List<ElementAction>();
-                if (remShift > 0 && CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList)) forced.Add(ElementAction.SHIFT);
-                if (remRem > 0 && CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList)) forced.Add(ElementAction.REMOVAL);
-                if (remAdd > 0 && CanBeActionExecuted(ElementAction.ADDITION, BaseList, branchList)) forced.Add(ElementAction.ADDITION);
+                if (remShift > 0 && CanBeActionExecuted(ElementAction.SHIFT, actualElement, BaseList, branchList)) forced.Add(ElementAction.SHIFT);
+                if (remRem > 0 && CanBeActionExecuted(ElementAction.REMOVAL, actualElement, BaseList, branchList)) forced.Add(ElementAction.REMOVAL);
+                if (remAdd > 0 && CanBeActionExecuted(ElementAction.ADDITION, actualElement, BaseList, branchList)) forced.Add(ElementAction.ADDITION);
 
                 if (forced.Count > 0)
                 {
@@ -389,15 +412,15 @@ namespace ListMaker
 
             var allowed = new List<ElementAction> { };
 
-            if (CanBeActionExecuted(ElementAction.SHIFT, BaseList, branchList))
+            if (CanBeActionExecuted(ElementAction.SHIFT, actualElement, BaseList, branchList))
             {
                 allowed.Add(ElementAction.SHIFT);
             }
-            if (CanBeActionExecuted(ElementAction.REMOVAL, BaseList, branchList))
+            if (CanBeActionExecuted(ElementAction.REMOVAL, actualElement, BaseList, branchList))
             {
                 allowed.Add(ElementAction.REMOVAL);
             }
-            if (CanBeActionExecuted(ElementAction.ADDITION, BaseList, branchList))
+            if (CanBeActionExecuted(ElementAction.ADDITION, actualElement, BaseList, branchList))
             {
                 allowed.Add(ElementAction.ADDITION);
             }
@@ -418,11 +441,11 @@ namespace ListMaker
             };
         }
 
-        private static bool CanBeActionExecuted(ElementAction action, List<string> baseList, List<string> branchList)
+        private static bool CanBeActionExecuted(ElementAction action, string actualElement, List<string> baseList, List<string> branchList)
         {
             if (GetRemainingNumberOfUsesOfAction(action) == 0) return false;
 
-            if (UsedShiftItems.Contains(ActualElement)) return false; // shift tu pridal prvok
+            if (UsedShiftItems.Contains(actualElement)) return false; // shift tu pridal prvok
 
             if (action == ElementAction.REMOVAL)
             {
@@ -430,7 +453,7 @@ namespace ListMaker
                 {
                     return false;
                 }
-                if (UsedShiftItems.Contains(ActualElement)) return false;
+                if (UsedShiftItems.Contains(actualElement)) return false;
             }
 
             else if (action == ElementAction.SHIFT)
@@ -439,7 +462,7 @@ namespace ListMaker
                 {
                     return false;
                 }
-                if (UsedShiftItems.Contains(ActualElement)) return false;                
+                if (UsedShiftItems.Contains(actualElement)) return false;                
                 if (ResultList.Count - UsedShiftItems.Distinct().Count() <= 3) return false;
             }
             return true; // add, keep

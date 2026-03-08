@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using PeopleMaker = PersonMaker.PersonMaker;
 using ListsMaker = ListMaker.ListMaker;
-using SetMaker = SetMaker.SetMaker;
+using SetsMaker = SetMaker.SetMaker;
 
 namespace Interface
 {
@@ -303,6 +303,8 @@ namespace Interface
                         int setMaxRemovals = int.MaxValue;
                         int setMaxAdditions = int.MaxValue;
 
+                        bool shuffle = false;
+
                         if (setAllowRemove)
                         {
                             if (!int.TryParse(MaxRemovalsTextBox.Text, out setMaxRemovals) || setMaxRemovals < 0)
@@ -320,16 +322,14 @@ namespace Interface
                                 return;
                             }
                         }
-                        /*
                         SetsMaker.SetParameters(
                             numberIterations: iteration,
                             removingAllowed: setAllowRemove,
                             addingAllowed: setAllowAdd,
-                            allowShifts: false, // pre set poradie nezáleží, takže false
                             outputDirectory: folder,
                             minResultSize: min!.Value,
-                            maxResultSize: max!.Value
-                            shuffle: 
+                            maxResultSize: max!.Value,
+                            shuffle: shuffle
                         );
 
                         SetsMaker.SetAllowedMax(
@@ -338,7 +338,7 @@ namespace Interface
                         );
 
                         SetsMaker.Main();
-                        */
+
                         StatusTextBlock.Text = $"Exported HashSet<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
                         break;
 
