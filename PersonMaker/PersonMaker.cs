@@ -109,22 +109,6 @@ namespace PersonMaker
 
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
-                double rightKeepProbability = 1.0 - leftKeepProbability;
-
-                int startingNumberOfMods = (AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0) +
-                                             (AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0) +
-                                             (AllowChange ? MaxAllowedChanges - MadeChanges : 0);
-
-                if (startingNumberOfMods == 2)
-                {
-                    leftKeepProbability = 0.5;
-                    rightKeepProbability = 0.5;
-                    ChangeLogText += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
-                }
-                else
-                {
-                    ChangeLogText += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {rightKeepProbability:P0}\n";
-                }
 
                 int leftModificationCount = 0;
                 int rightModificationCount = 0;
@@ -143,29 +127,18 @@ namespace PersonMaker
 
                     // Generovanie akcii pre pravy a lavy branch
                     AtributeAction actionR, actionL;
-                    bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
-
-                    // ak mam povolene prave experiment s 2 akciami, očakávam že na oboch stranách bude daná akcia spravená presne raz
-                    if (startingNumberOfMods == 2 && leftModificationCount > 0)
-                    {
-                        leftIsKeep = true;
-                    }
-                    else if (startingNumberOfMods == 2 && rightModificationCount > 0)
-                    {
-                        leftIsKeep = false;
-                    }
 
                     int remainingPositions = baseAtributeCount - i;
 
-                    if (leftIsKeep)
-                    {
-                        actionL = AtributeAction.KEEP;
-                        actionR = GetAtributeAction(remainingPositions);
-                    }
-                    else
+                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
                     {
                         actionL = GetAtributeAction(remainingPositions);
                         actionR = AtributeAction.KEEP;
+                    }
+                    else
+                    {
+                        actionL = AtributeAction.KEEP;
+                        actionR = GetAtributeAction(remainingPositions);
                     }
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
@@ -199,7 +172,7 @@ namespace PersonMaker
                 }
 
                 // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+                if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;

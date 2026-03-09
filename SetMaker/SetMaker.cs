@@ -102,15 +102,15 @@ namespace SetMaker
                     string baseStepName = "base_step" + i;
 
                     SetAction leftAct, rightAct;
-                    if (Random.Shared.NextDouble() < leftKeepProbability)
-                    {
-                        leftAct = SetAction.KEEP;
-                        rightAct = GetElementAction();
-                    }
-                    else
+                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
                     {
                         leftAct = GetElementAction();
                         rightAct = SetAction.KEEP;
+                    }
+                    else
+                    {
+                        leftAct = SetAction.KEEP;
+                        rightAct = GetElementAction();
                     }
 
                     if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
@@ -144,7 +144,7 @@ namespace SetMaker
                 }
 
                 // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+                if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;

@@ -150,7 +150,7 @@ namespace ListMaker
                 }
 
                 // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+                if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;
@@ -184,29 +184,18 @@ namespace ListMaker
             }
         }
 
-        private static bool NextModificationLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
-        {
-            if (!TestingOneActionTwice()) return (Random.Shared.NextDouble() < leftKeepProbability);
-            
-            // chceme aby ked mame len 2 modifikacie, aby 1 bola na jeden a druha na druhej strne
-            if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
-            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
-
-            return (Random.Shared.NextDouble() < leftKeepProbability);
-        }
-
         private static (ElementAction, ElementAction) ChooseLeftRightAction(int leftModificationCount, int rightModificationCount, double leftKeepProbability, int remainingPositions, string item) {
             ElementAction leftAct, rightAct;
 
-            if (NextModificationLeft(leftModificationCount, rightModificationCount, leftKeepProbability))
-            {
-                leftAct = ElementAction.KEEP;
-                rightAct = ChooseAction(RightList, remainingPositions, item);
-            }
-            else
+            if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
             {
                 leftAct = ChooseAction(LeftList, remainingPositions, item);
                 rightAct = ElementAction.KEEP;
+            }
+            else
+            {
+                leftAct = ElementAction.KEEP;
+                rightAct = ChooseAction(RightList, remainingPositions, item);
             }
             return (leftAct, rightAct);
         }

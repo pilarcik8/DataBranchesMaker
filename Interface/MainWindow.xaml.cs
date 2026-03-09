@@ -61,6 +61,7 @@ namespace Interface
             }
             UpdateSizeInputsVisibility();
             UpdateAllowedActionsForTarget();
+            UpdateShuffleVisibility();
         }
 
         private void UpdateSizeInputsVisibility()
@@ -68,6 +69,12 @@ namespace Interface
             // min a max size sú relevantné len pre Set a List, takže ich panel zobrazíme len ak je vybraný Set alebo List
             bool showSize = (SetCheckBox.IsChecked == true) || (ListCheckBox.IsChecked == true);
             SizeInputsPanel.Visibility = showSize ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void UpdateShuffleVisibility()
+        {
+            // Shuffle je relevantný len pre Set, takže jeho checkbox zobrazíme len ak je vybraný Set
+            ShuffleBranchesCheckBox.Visibility = SetCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void UpdateAllowedActionsForTarget()
@@ -79,6 +86,7 @@ namespace Interface
             // Set: Add + Remove
             if (isSet)
             {
+                ShuffleBranchesCheckBox.IsChecked = false;
                 // schopnosť zakliknúť Add a Remove necháme, ale Change a Shift zakážeme
                 AllowAddCheckBox.IsEnabled = true;
                 AllowRemoveCheckBox.IsEnabled = true;
@@ -94,6 +102,8 @@ namespace Interface
             // List: Add, Change, Shift
             else if (isList)
             {
+                ShuffleBranchesCheckBox.IsChecked = false;
+
                 AllowAddCheckBox.IsEnabled = true;
                 AllowRemoveCheckBox.IsEnabled = true;
                 AllowChangeCheckBox.IsEnabled = false;
@@ -108,6 +118,8 @@ namespace Interface
             // Class(Person): Add, Remove, Change
             else if (isClass)
             {
+                ShuffleBranchesCheckBox.IsChecked = false;
+
                 AllowAddCheckBox.IsEnabled = true;
                 AllowRemoveCheckBox.IsEnabled = true;
                 AllowChangeCheckBox.IsEnabled = true;
@@ -222,15 +234,13 @@ namespace Interface
                             }
                         }
 
-
-
                         PeopleMaker.SetParameters(
                             numberIterations: iteration,
                             changesAllowed: allowChange,
                             removingAllowed: allowRemove,
                             addingAllowed: allowAdd,
                             outputDirectory: folder,
-                            writeSteps: writeSteps
+                            writeSteps: writeSteps.Value
                         );
 
                         PeopleMaker.SetMaxAllowed(
@@ -291,7 +301,7 @@ namespace Interface
                             outputDirectory: folder,
                             minResultSize: min!.Value,
                             maxResultSize: max!.Value,
-                            writeSteps: writeSteps
+                            writeSteps: writeSteps.Value
                         );
 
                         ListsMaker.SetAllowedMax(
@@ -313,7 +323,7 @@ namespace Interface
                         int setMaxRemovals = int.MaxValue;
                         int setMaxAdditions = int.MaxValue;
 
-                        bool shuffle = ShuffleBranches.IsChecked == true;
+                        bool shuffle = ShuffleBranchesCheckBox.IsChecked == true;
                         writeSteps = WriteStepsCheckBox.IsChecked == true;
 
                         if (setAllowRemove)
@@ -341,7 +351,7 @@ namespace Interface
                             minResultSize: min!.Value,
                             maxResultSize: max!.Value,
                             shuffle: shuffle,
-                            writeSteps: writeSteps
+                            writeSteps: writeSteps!.Value
                         );
 
                         SetsMaker.SetAllowedMax(
@@ -382,5 +392,7 @@ namespace Interface
             if (MaxAdditionsPanel != null) MaxAdditionsPanel.Visibility = AllowAddCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
             if (MaxShiftsPanel != null) MaxShiftsPanel.Visibility = AllowShiftCheckBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
         }
+
+
     }
 }

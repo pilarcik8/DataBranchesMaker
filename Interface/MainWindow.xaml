@@ -8,13 +8,20 @@
         MinWidth="520" MaxWidth="520">
     <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/> <!-- Type selector -->
-            <RowDefinition Height="Auto"/> <!-- Size inputs (min/max) -->
-            <RowDefinition Height="Auto"/> <!-- Allowed actions checkboxes -->
-            <RowDefinition Height="Auto"/> <!-- Max allowed values -->
-            <RowDefinition Height="Auto"/> <!-- Output folder -->
-            <RowDefinition Height="Auto"/> <!-- Iteration + Export -->
-            <RowDefinition Height="*"/>    <!-- Status -->
+            <RowDefinition Height="Auto"/>
+            <!-- Type selector -->
+            <RowDefinition Height="Auto"/>
+            <!-- Size inputs (min/max) -->
+            <RowDefinition Height="Auto"/>
+            <!-- Allowed actions checkboxes -->
+            <RowDefinition Height="Auto"/>
+            <!-- Max allowed values -->
+            <RowDefinition Height="Auto"/>
+            <!-- Output folder -->
+            <RowDefinition Height="Auto"/>
+            <!-- Iteration + Export -->
+            <RowDefinition Height="*"/>
+            <!-- Status -->
         </Grid.RowDefinitions>
 
         <!-- Selector: three checkboxes, exactly one allowed at a time -->
@@ -80,10 +87,18 @@
             <Button x:Name="BrowseButton" Content="Browse..." Width="80" Margin="8,0,0,0" Click="BrowseButton_Click"/>
         </StackPanel>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,8">
-            <TextBlock Text="Iteration:" VerticalAlignment="Center" Margin="0,0,8,0"/>
-            <TextBox x:Name="IterationTextBox" Width="60" Text="1"/>
-            <Button x:Name="ExportButton" Content="Export" Width="80" Margin="12,0,0,0" Click="ExportButton_Click"/>
+        <!-- Iteration + Export and WriteSteps checkbox under iterations -->
+        <StackPanel Orientation="Vertical" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Iteration:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBox x:Name="IterationTextBox" Width="60" Text="1"/>
+                <Button x:Name="ExportButton" Content="Export" Width="80" Margin="12,0,0,0" Click="ExportButton_Click"/>
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <CheckBox x:Name="WriteStepsCheckBox" Content="Write steps" />
+                <CheckBox x:Name="ShuffleBranchesCheckBox" Content="Shuffle branches" Margin="12,0,0,0" Visibility="Collapsed" />
+            </StackPanel>
         </StackPanel>
 
         <TextBlock x:Name="StatusTextBlock" Grid.Row="6" TextWrapping="Wrap" VerticalAlignment="Top" Foreground="DarkGreen"/>
