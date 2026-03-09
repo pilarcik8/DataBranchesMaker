@@ -1,6 +1,7 @@
 ﻿using Bogus;
 using Shared;
 using System.Text;
+using System.Xml;
 using Person = Shared.Person;
 
 namespace PersonMaker
@@ -11,6 +12,20 @@ namespace PersonMaker
         CHANGE,
         REMOVE,
         ADD
+    }
+
+    internal struct Step
+    {
+        public string name { get; }
+        public Person listOfState { get; }
+        public string pathToExport { get; }
+
+        public Step(string name, Person personOfState, string pathToExport)
+        {
+            this.name = name;
+            this.listOfState = personOfState.Clone();
+            this.pathToExport = pathToExport;
+        }
     }
 
     public static class PersonMaker
@@ -33,8 +48,9 @@ namespace PersonMaker
         public static Person? LeftPerson { get; set; }
         public static Person? RightPerson { get; set; }
         public static Person? ResultPerson { get; set; }
+        public static bool WriteSteps { get; set; } = false;
 
-        public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory)
+        public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory, bool writeSteps)
         {
             if (numberIterations <= 0)
             {
@@ -54,6 +70,7 @@ namespace PersonMaker
             AllowRemove = removingAllowed;
             AllowAdd = addingAllowed;
             OutputDirectory = outputDirectory;
+            WriteSteps = writeSteps;
         }
 
         public static void SetMaxAllowed(int maxChanges, int maxRemovals, int maxAdditions)
@@ -112,8 +129,18 @@ namespace PersonMaker
                 int leftModificationCount = 0;
                 int rightModificationCount = 0;
 
+                Stack<Step> steps = new Stack<Step>();
                 for (int i = 0; i < baseAtributeCount; i++)
                 {
+                    var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
+                    var pathToStepsL = Path.Combine(pathToSteps, "left");
+                    var pathToStepsR = Path.Combine(pathToSteps, "right");
+                    var pathToStepsB = Path.Combine(pathToSteps, "base");
+
+                    string leftStepName = "left_step" + i;
+                    string rightStepName = "right_step" + i;
+                    string baseStepName = "base_step" + i;
+
                     // Generovanie akcii pre pravy a lavy branch
                     AtributeAction actionR, actionL;
                     bool leftIsKeep = Random.Shared.NextDouble() < leftKeepProbability;
@@ -143,23 +170,57 @@ namespace PersonMaker
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
-                        ChangeLogText += "Left, Right and Base\n";
+                        ChangeLogText += "L, R, B:\n";
                         ExecuteAction(LeftPerson, BasePerson, i, actionL, faker, iteration);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
                         leftModificationCount++;
-                        ChangeLogText += "Left and Base:\n";
+                        ChangeLogText += "L, B:\n";
                         ExecuteAction(LeftPerson, BasePerson, i, actionL, faker, iteration);
+                        if (WriteSteps)
+                        {
+                            steps.Push(new Step(leftStepName, LeftPerson, pathToStepsL));
+                            steps.Push(new Step(baseStepName, BasePerson, pathToStepsB));
+                        }
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
                         rightModificationCount++;
-                        ChangeLogText += "Right and Base:\n";
+                        ChangeLogText += "R, B:\n";
                         ExecuteAction(RightPerson, BasePerson, i, actionR, faker, iteration);
+                        if (WriteSteps)
+                        {
+                            steps.Push(new Step(rightStepName, RightPerson, pathToStepsR));
+                            steps.Push(new Step(baseStepName, BasePerson, pathToStepsB));
+                        }
                     }
                 }
+
+                // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
+                if (SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+                {
+                    steps.Clear();
+                    iteration--;
+                    continue;
+                }
+
+                // Export krokov - musi byt po ujisteni 3way merge, inak kroky stare + nove sa zmiesaju
+                while (steps.Count > 0)
+                {
+                    var step = steps.Pop();
+                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
+                }
+
+                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
+                                                leftKeepProbability: leftKeepProbability,
+                                                iteration: iteration,
+                                                leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
+                                                allowAdd: AllowAdd, allowRemove: AllowRemove, allowChange: AllowChange,
+                                                madeAdditions: MadeAdditions, madeRemovals: MadeRemovals, madeChanges: MadeChanges,
+                                                maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedChanges: MaxAllowedChanges);
+                ChangeLogText = head + ChangeLogText;
 
                 XMLOutput.Export(RightPerson, "right", iteration, OutputDirectory);
                 XMLOutput.Export(LeftPerson, "left", iteration, OutputDirectory);
@@ -274,6 +335,37 @@ namespace PersonMaker
                 .RuleFor(p => p.Country, _ => f.Address.Country());
 
             return pf.Generate();
+        }
+        private static bool TestingOneActionOnce()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+            if (AllowChange) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 1;
+        }
+
+        private static bool TestingOneActionTwice()
+        {
+            int allowed = 0;
+            if (AllowAdd) allowed++;
+            if (AllowRemove) allowed++;
+            if (AllowChange) allowed++;
+
+            if (allowed != 1) return false;
+
+            return MaxActionsSum() == 2;
+        }
+
+        private static long MaxActionsSum()
+        {
+            long allowedNumberOfActions = 0;
+            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
+            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
+            return allowedNumberOfActions;
         }
     }
 }

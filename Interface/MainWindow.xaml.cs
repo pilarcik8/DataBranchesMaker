@@ -158,6 +158,8 @@ namespace Interface
 
                 int? min = null;
                 int? max = null;
+                bool? writeSteps = null;
+
                 if (selected == ExportTarget.List || selected == ExportTarget.HashSet)
                 {
                     if (!int.TryParse(MinSizeTextBox.Text, out int minVal) || minVal < 0)
@@ -191,6 +193,8 @@ namespace Interface
                         int maxRemovals = int.MaxValue;
                         int maxAdditions = int.MaxValue;
 
+                        writeSteps = WriteStepsCheckBox.IsChecked == true;
+
                         if (allowChange)
                         {
                             if (!int.TryParse(MaxChangesTextBox.Text, out maxChanges) || maxChanges < 0)
@@ -218,12 +222,15 @@ namespace Interface
                             }
                         }
 
+
+
                         PeopleMaker.SetParameters(
                             numberIterations: iteration,
                             changesAllowed: allowChange,
                             removingAllowed: allowRemove,
                             addingAllowed: allowAdd,
-                            outputDirectory: folder
+                            outputDirectory: folder,
+                            writeSteps: writeSteps
                         );
 
                         PeopleMaker.SetMaxAllowed(
@@ -246,6 +253,8 @@ namespace Interface
                         int listMaxRemovals = int.MaxValue;
                         int listMaxAdditions = int.MaxValue;
                         int listMaxShifts = int.MaxValue;
+
+                        writeSteps = WriteStepsCheckBox.IsChecked == true;
 
                         if (listAllowRemove)
                         {
@@ -281,7 +290,8 @@ namespace Interface
                             allowShifts: listAllowShift,
                             outputDirectory: folder,
                             minResultSize: min!.Value,
-                            maxResultSize: max!.Value
+                            maxResultSize: max!.Value,
+                            writeSteps: writeSteps
                         );
 
                         ListsMaker.SetAllowedMax(
@@ -303,7 +313,8 @@ namespace Interface
                         int setMaxRemovals = int.MaxValue;
                         int setMaxAdditions = int.MaxValue;
 
-                        bool shuffle = false;
+                        bool shuffle = ShuffleBranches.IsChecked == true;
+                        writeSteps = WriteStepsCheckBox.IsChecked == true;
 
                         if (setAllowRemove)
                         {
@@ -329,7 +340,8 @@ namespace Interface
                             outputDirectory: folder,
                             minResultSize: min!.Value,
                             maxResultSize: max!.Value,
-                            shuffle: shuffle
+                            shuffle: shuffle,
+                            writeSteps: writeSteps
                         );
 
                         SetsMaker.SetAllowedMax(

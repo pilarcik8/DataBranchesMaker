@@ -48,7 +48,7 @@ namespace SetMaker
         public static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
 
 
-        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle)
+        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle, bool writeSteps)
         {
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
@@ -57,17 +57,13 @@ namespace SetMaker
             AllowAdd = addingAllowed;
             OutputDirectory = outputDirectory;
             ShuffleBaseLeftRight = shuffle;
+            WriteSteps = writeSteps;
         }
 
         public static void SetAllowedMax(int maxRemovals, int maxAdditions)
         {
             MaxAllowedRemovals = maxRemovals;
             MaxAllowedAdditions = maxAdditions;
-        }
-
-        public static void EnableWriteSteps(bool enable)
-        {
-            WriteSteps = enable;
         }
 
         public static void Main()
@@ -147,7 +143,8 @@ namespace SetMaker
                     i++;
                 }
 
-                if (!ValidOutput(leftModificationCount, rightModificationCount))
+                // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
+                if (SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;
@@ -173,18 +170,17 @@ namespace SetMaker
 
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
-                ChangeLogText = WriteHeadForChangeLog(leftKeepProbability, iteration, leftModificationCount, rightModificationCount) + ChangeLogText;
+
+                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
+                                                leftKeepProbability: leftKeepProbability,
+                                                iteration: iteration,
+                                                leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
+                                                allowAdd: AllowAdd, allowRemove: AllowRemove,
+                                                madeAdditions: MadeAdditions, madeRemovals: MadeRemovals,
+                                                maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals);
+                ChangeLogText = head + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
-        }
-
-        private static bool ValidOutput(int leftModificationCount, int rightModificationCount)
-        {
-            if (TestingOneActionOnce())
-            {
-                return (leftModificationCount + rightModificationCount == 1);
-            }
-            return (leftModificationCount > 0 && rightModificationCount > 0);
         }
 
         private static HashSet<string> MakeResultSet(int size, Faker faker)
@@ -213,45 +209,12 @@ namespace SetMaker
             }
             else if (action == SetAction.ADD)
             {
-                string newItem = faker.Random.Word();
-                while (BaseSet.Contains(newItem) || LeftSet.Contains(newItem) || RightSet.Contains(newItem) || ResultSet.Contains(newItem))
-                {
-                    newItem = faker.Random.Word();
-                }
+                string newItem = SharedMethods.GetNewUniqueWord(faker, BaseSet.ToList(), LeftSet.ToList(), RightSet.ToList(), ResultSet.ToList());
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
                 MadeAdditions++;
             }
             ChangeLogText += messege + "\n";
-        }
-
-        private static string WriteHeadForChangeLog(double leftKeepProbability, int iteration, int leftModsCount, int rightModsCount)
-        {
-            string head = "Allowed Actions: ";
-            if (AllowRemove) head += "Remove ";
-            if (AllowAdd) head += "Add ";
-            head += "\n";
-
-            head += "Max Allowed Actions: ";
-            if (AllowRemove) head += $" Remove: {MaxAllowedRemovals} ";
-            if (AllowAdd) head += $"Add: {MaxAllowedAdditions} ";
-            head += "\n";
-
-            head += "Total modifications: ";
-            if (AllowRemove) head += $"Removals: {MadeRemovals} ";
-            if (AllowAdd) head += $"Additions: {MadeAdditions} ";
-            head += "\n\n";
-
-            if (TestingOneActionTwice())
-            {
-                head += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
-            }
-            else
-            {
-                head += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
-            }
-            head += $"Number of modifications: Left: {leftModsCount}, Right: {rightModsCount}\n\n";
-            return head;
         }
 
         private static SetAction GetElementAction()

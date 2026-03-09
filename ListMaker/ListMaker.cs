@@ -67,7 +67,7 @@ namespace ListMaker
         public static List<string> LeftList = new List<string>();
         public static List<string> BaseList = new List<string>();
 
-        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize)
+        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize, bool writeSteps)
         {
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
@@ -76,6 +76,7 @@ namespace ListMaker
             AllowAdd = addingAllowed;
             AllowShift = allowShifts;
             OutputDirectory = outputDirectory;
+            WriteSteps = writeSteps;
         }
 
         public static void SetAllowedMax(int maxRemovals, int maxAdditions, int maxShifts)
@@ -83,11 +84,6 @@ namespace ListMaker
             MaxAllowedRemovals = maxRemovals;
             MaxAllowedAdditions = maxAdditions;
             MaxAllowedShifts = maxShifts;
-        }
-
-        public static void EnableWriteSteps(bool enable)
-        {
-            WriteSteps = enable;
         }
 
         public static void Main()
@@ -154,7 +150,7 @@ namespace ListMaker
                 }
 
                 // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (!ValidOutput(leftModificationCount, rightModificationCount))
+                if (SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;
@@ -176,18 +172,16 @@ namespace ListMaker
                 // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
-                ChangeLogText = WriteHeadForChangeLog(leftKeepProbability, iteration, leftModificationCount, rightModificationCount) + ChangeLogText;
+                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
+                                                                leftKeepProbability: leftKeepProbability,
+                                                                iteration: iteration,
+                                                                leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
+                                                                allowAdd: AllowAdd, allowRemove: AllowRemove, allowShift: AllowShift,
+                                                                madeAdditions: MadeAdditions, madeRemovals: MadeRemovals, madeShifts: MadeShifts,
+                                                                maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedShifts: MaxAllowedShifts);
+                ChangeLogText = head + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
-        }
-
-        private static bool ValidOutput(int leftModificationCount, int rightModificationCount)
-        {
-            if (TestingOneActionOnce())
-            {
-                return (leftModificationCount + rightModificationCount == 1);
-            }
-            return (leftModificationCount > 0 && rightModificationCount > 0);            
         }
 
         private static bool NextModificationLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
@@ -236,38 +230,6 @@ namespace ListMaker
             RightList = new List<string>(ResultList);
         }
 
-        private static string WriteHeadForChangeLog(double leftKeepProbability, int iteration, int leftModsCount, int rightModsCount)
-        {
-            string head = "Allowed Actions: ";
-            if (AllowRemove) head += "Remove ";
-            if (AllowAdd) head += "Add ";
-            if (AllowShift) head += "Shift ";
-            head += "\n";
-
-            head += "Max Allowed Actions: ";
-            if (AllowRemove) head += $" Remove: {MaxAllowedRemovals} ";
-            if (AllowAdd) head += $"Add: {MaxAllowedAdditions} ";
-            if (AllowShift) head += $"Shift: {MaxAllowedShifts} ";
-            head += "\n";
-
-            head += "Total modifications: ";
-            if (AllowRemove) head += $"Removals: {MadeRemovals} ";
-            if (AllowAdd) head += $"Additions: {MadeAdditions} ";
-            if (AllowShift) head += $"Shifts: {MadeShifts} ";
-            head += "\n\n";
-
-            if (TestingOneActionTwice())
-            {
-                head += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
-            }
-            else
-            {
-                head += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
-            }
-            head += $"Number of modifications: Left: {leftModsCount}, Right: {rightModsCount}\n\n";
-            return head;
-        }
-
         private static List<string> CreateStartingList(Faker faker, int elementCount)
         {
             var list = new List<string>();
@@ -303,7 +265,7 @@ namespace ListMaker
             }
             else if (action == ElementAction.ADDITION)
             {
-                string newItem = GetNewUniqueWord(faker);
+                string newItem = SharedMethods.GetNewUniqueWord(faker, BaseList, LeftList, RightList, ResultList);
 
                 int branchIndex = branchList.IndexOf(item);
                 int baseIndex = baseList.IndexOf(item);
@@ -365,22 +327,6 @@ namespace ListMaker
                 // dalsí element sa nezmie modifikovať, lebo nastane rovnaký problém ako keď odstránime 2 prvky idúce za sebou vo vedlajsich vetviach (nedeterministicke poradie)
                 LastElementWasRemovedFromPosition = true;
             }
-        }
-
-        private static string GetNewUniqueWord(Faker faker)
-        {
-            var word = faker.Random.Word();
-            int loopCounter = 0;
-            while (BaseList.Contains(word) || LeftList.Contains(word) || RightList.Contains(word) || ResultList.Contains(word))
-            {
-                word = faker.Random.Word();
-                if (loopCounter > 10)
-                {
-                    word += " " + faker.UniqueIndex;
-                }
-                loopCounter++;
-            }
-            return word;
         }
 
         private static ElementAction ChooseAction(List<string> branchList, int remainingPositions, string actualElement)
