@@ -87,23 +87,11 @@ namespace PersonMaker
 
         public static void Main()
         {
+            var faker = new Faker("en");
+
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
-                MadeChanges = 0;
-                MadeRemovals = 0;
-                MadeAdditions = 0;
-
-                ChangeLogText = string.Empty;
-                Console.WriteLine($"Iteration {iteration}:");
-                // Vytvorenie vyslednej osoby
-                var faker = new Faker("en");
-
-                ResultPerson = CreatePersonWithPlaceholders();
-
-                // Tvorba 2 branchov a ich predka
-                LeftPerson = ResultPerson.Clone();
-                RightPerson = ResultPerson.Clone();
-                BasePerson = ResultPerson.Clone();
+                Init();
 
                 int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
 
@@ -144,29 +132,29 @@ namespace PersonMaker
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
                         ChangeLogText += "L, R, B:\n";
-                        ExecuteAction(LeftPerson, BasePerson, i, actionL, faker, iteration);
+                        ExecuteAction(LeftPerson!, BasePerson!, i, actionL, faker, iteration);
                         continue;
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
                         leftModificationCount++;
                         ChangeLogText += "L, B:\n";
-                        ExecuteAction(LeftPerson, BasePerson, i, actionL, faker, iteration);
+                        ExecuteAction(LeftPerson!, BasePerson!, i, actionL, faker, iteration);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(leftStepName, LeftPerson, pathToStepsL));
-                            steps.Push(new Step(baseStepName, BasePerson, pathToStepsB));
+                            steps.Push(new Step(leftStepName, LeftPerson!, pathToStepsL));
+                            steps.Push(new Step(baseStepName, BasePerson!, pathToStepsB));
                         }
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
                         rightModificationCount++;
                         ChangeLogText += "R, B:\n";
-                        ExecuteAction(RightPerson, BasePerson, i, actionR, faker, iteration);
+                        ExecuteAction(RightPerson!, BasePerson!, i, actionR, faker, iteration);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(rightStepName, RightPerson, pathToStepsR));
-                            steps.Push(new Step(baseStepName, BasePerson, pathToStepsB));
+                            steps.Push(new Step(rightStepName, RightPerson!, pathToStepsR));
+                            steps.Push(new Step(baseStepName, BasePerson!, pathToStepsB));
                         }
                     }
                 }
@@ -195,10 +183,10 @@ namespace PersonMaker
                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedChanges: MaxAllowedChanges);
                 ChangeLogText = head + ChangeLogText;
 
-                XMLOutput.Export(RightPerson, "right", iteration, OutputDirectory);
-                XMLOutput.Export(LeftPerson, "left", iteration, OutputDirectory);
-                XMLOutput.Export(BasePerson, "base", iteration, OutputDirectory);
-                XMLOutput.Export(ResultPerson, "expectedResult", iteration, OutputDirectory);
+                XMLOutput.Export(RightPerson!, "right", iteration, OutputDirectory);
+                XMLOutput.Export(LeftPerson!, "left", iteration, OutputDirectory);
+                XMLOutput.Export(BasePerson!, "base", iteration, OutputDirectory);
+                XMLOutput.Export(ResultPerson!, "expectedResult", iteration, OutputDirectory);
 
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
@@ -206,6 +194,21 @@ namespace PersonMaker
             }
         }
 
+        private static void Init()
+        {
+            MadeChanges = 0;
+            MadeRemovals = 0;
+            MadeAdditions = 0;
+
+            ChangeLogText = string.Empty;
+
+            ResultPerson = CreatePersonWithPlaceholders();
+
+            // Tvorba 2 branchov a ich predka
+            LeftPerson = ResultPerson.Clone();
+            RightPerson = ResultPerson.Clone();
+            BasePerson = ResultPerson.Clone();
+        }
         private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
         {
             if (action == AtributeAction.KEEP)

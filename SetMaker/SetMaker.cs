@@ -1,4 +1,5 @@
 ﻿using Bogus;
+using Microsoft.VisualBasic;
 using Shared;
 using System.Text;
 
@@ -69,28 +70,18 @@ namespace SetMaker
         public static void Main()
         {
             var faker = new Faker();
+
             // Vytvorenie základneho (vysledkovy) setu
             for (int iteration = 0; iteration < Iterations; iteration++) // pocet skupin vetiev
             {
-                MadeRemovals = 0;
-                MadeAdditions = 0;
-                ChangeLogText = string.Empty;
-                int targetCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
-
-                ResultSet = MakeResultSet(targetCount, faker);
-                RightSet = new HashSet<string>(ResultSet, StringComparer.Ordinal);
-                LeftSet = new HashSet<string>(ResultSet, StringComparer.Ordinal);
-                BaseSet = new HashSet<string>(ResultSet, StringComparer.Ordinal);
+                Init(faker);
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
-                double rightKeepProbability = 1.0 - leftKeepProbability;
 
-                int leftModificationCount = 0;
-                int rightModificationCount = 0;
                 Stack<Step> steps = new Stack<Step>();
+                var (leftActions, rightActions) = GetActionsForItem(leftKeepProbability);
 
-                int i = 0;
-                foreach (string item in ResultSet)
+                for (int i = 0; i < ResultSet.Count; i++)
                 {
                     var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
                     var pathToStepsL = Path.Combine(pathToSteps, "left");
@@ -101,17 +92,9 @@ namespace SetMaker
                     string rightStepName = "right_step" + i;
                     string baseStepName = "base_step" + i;
 
-                    SetAction leftAct, rightAct;
-                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
-                    {
-                        leftAct = GetElementAction();
-                        rightAct = SetAction.KEEP;
-                    }
-                    else
-                    {
-                        leftAct = SetAction.KEEP;
-                        rightAct = GetElementAction();
-                    }
+                    string item = ResultSet.ElementAt(i);
+                    var leftAct = leftActions[i];
+                    var rightAct = rightActions[i];
 
                     if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
                     {
@@ -121,7 +104,6 @@ namespace SetMaker
                     else if (leftAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Right and Base\n";
-                        rightModificationCount++;
                         ExecuteAction(RightSet, BaseSet, item, rightAct, faker, iteration);
                         if (WriteSteps)
                         {
@@ -132,7 +114,6 @@ namespace SetMaker
                     else if (rightAct == SetAction.KEEP)
                     {
                         ChangeLogText += "Left and Base\n";
-                        leftModificationCount++;
                         ExecuteAction(LeftSet, BaseSet, item, leftAct, faker, iteration);
                         if (WriteSteps)
                         {
@@ -140,15 +121,6 @@ namespace SetMaker
                             steps.Push(new Step(baseStepName, BaseSet, pathToStepsB));
                         }
                     }
-                    i++;
-                }
-
-                // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
-                {
-                    steps.Clear();
-                    iteration--;
-                    continue;
                 }
 
                 while (steps.Count > 0)
@@ -171,16 +143,125 @@ namespace SetMaker
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
 
+                leftActions.RemoveAll(x => x == SetAction.KEEP);
+                rightActions.RemoveAll(x => x == SetAction.KEEP);
+
                 string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
                                                 leftKeepProbability: leftKeepProbability,
                                                 iteration: iteration,
-                                                leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
+                                                leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
                                                 allowAdd: AllowAdd, allowRemove: AllowRemove,
                                                 madeAdditions: MadeAdditions, madeRemovals: MadeRemovals,
                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals);
                 ChangeLogText = head + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
+        }
+
+        private static void Init(Faker faker)
+        {
+            BaseSet = MakeResultSet(Random.Shared.Next(MinResultSize, MaxResultSize + 1), faker);
+            LeftSet = new HashSet<string>(BaseSet, StringComparer.Ordinal);
+            RightSet = new HashSet<string>(BaseSet, StringComparer.Ordinal);
+            ResultSet = new HashSet<string>(BaseSet, StringComparer.Ordinal);
+
+            MadeRemovals = 0;
+            MadeAdditions = 0;
+            ChangeLogText = string.Empty;
+        }
+
+        private static (List<SetAction> leftActions, List<SetAction> rightActions) GetActionsForItem(double leftKeepProbability)
+        {
+            List<SetAction> leftActions = new List<SetAction>();
+            List<SetAction> rightActions = new List<SetAction>();
+
+            int leftModificationCount = 0;
+            int rightModificationCount = 0;
+
+            for (int i = 0; i < ResultSet.Count; i++)
+            {
+                leftActions.Add(SetAction.KEEP);
+                rightActions.Add(SetAction.KEEP);
+            }
+
+            // helper
+            SetAction GetNonKeepAction()
+            {
+                if (AllowRemove && AllowAdd) throw new InvalidOperationException("Obe akcie sú povolené, no program si myslý, že je iba jedna");
+                if (AllowAdd) return SetAction.ADD;
+                return SetAction.REMOVE;                
+            }
+
+            // jedna modifikacia
+            if (TestingOneActionOnce())
+            {
+                int index = Random.Shared.Next(ResultSet.Count);
+                var action = GetNonKeepAction();
+
+                if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                {
+                    leftActions[index] = action;
+                    leftModificationCount++;
+                }
+                else
+                {
+                    rightActions[index] = action;
+                    rightModificationCount++;
+                }
+            }
+
+            // dve modifikacie
+            else if (TestingOneActionTwice())
+            {
+                var action = GetNonKeepAction();
+                var indexes = new HashSet<int>();
+
+                for (int i = 0; i < 2; i++)
+                {
+                    int index = Random.Shared.Next(ResultSet.Count);
+                    while (indexes.Contains(index))
+                    {
+                        index = Random.Shared.Next(ResultSet.Count);
+                    }
+
+                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    {
+                        indexes.Add(index);
+                        leftActions[index] = action;
+                        leftModificationCount++;
+                    }
+                    else
+                    {
+                        indexes.Add(index);
+                        rightActions[index] = action;
+                        rightModificationCount++;
+                    }
+                }
+            }
+            else
+            {
+                // normalny beh
+                for (int j = 0; j < ResultSet.Count; j++)
+                {
+                    var action = GetElementAction();
+                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    {
+                        leftActions[j] = action;
+                        if (action != SetAction.KEEP) leftModificationCount++;
+                    }
+                    else
+                    {
+                        rightActions[j] = action;
+                        if (action != SetAction.KEEP) rightModificationCount++;
+                    }
+                }
+            }
+            // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu = prepis base/right/left
+            if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+            {
+                return GetActionsForItem(leftKeepProbability);
+            }
+            return (leftActions, rightActions);
         }
 
         private static HashSet<string> MakeResultSet(int size, Faker faker)
@@ -224,14 +305,6 @@ namespace SetMaker
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
 
-            int remainingModifications = remaningAdd + remaningRemove;
-
-            if (remainingModifications == 1)
-            {
-                int randomValue = Random.Shared.Next(5);
-                if (randomValue != 0) return SetAction.KEEP;
-            }
-
             if (remaningRemove > 0)
             {
                 allowed.Add(SetAction.REMOVE);
@@ -269,6 +342,8 @@ namespace SetMaker
 
         private static bool TestingOneActionTwice()
         {
+            if (ResultSet.Count < 2) return false;
+
             int allowed = 0;
             if (AllowAdd) allowed++;
             if (AllowRemove) allowed++;

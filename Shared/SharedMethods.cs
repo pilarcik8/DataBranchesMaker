@@ -21,13 +21,13 @@ namespace Shared
 
         public static bool NextModificationIsOnLeft(bool testingOneActionTwice, int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
         {
-            if (!testingOneActionTwice) return (Random.Shared.NextDouble() < leftKeepProbability);
+            // ak left keep prob je 0.7, tak 70% šanca že ďalšia modifikácia bude na pravej strane, a 30% šanca že bude na ľavej strane
+            if (!testingOneActionTwice) return (Random.Shared.NextDouble() >= leftKeepProbability);
 
-            // chceme aby ked mame len 2 modifikacie, aby 1 bola na jeden a druha na druhej strne
             if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
-            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;            
+            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
 
-            return (Random.Shared.NextDouble() < leftKeepProbability);
+            return (Random.Shared.NextDouble() >= leftKeepProbability);
         }
 
         public static string GetNewUniqueWord(Faker faker, List<string> baseList, List<string> leftList, List<string> rightList, List<string> resultList)
