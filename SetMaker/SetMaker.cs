@@ -51,6 +51,25 @@ namespace SetMaker
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle, bool writeSteps)
         {
+            if (numberIterations <= 0)
+            {
+                throw new Exception("Zlá nízka hodnota iterácí");
+            }
+            if (!removingAllowed && !addingAllowed)
+            {
+                throw new Exception("Žiadna operácia nie je povolená");
+            }
+
+            if (maxResultSize <= 0 || minResultSize <= 0)
+            {
+                throw new Exception("Zlá nízka hodnota veľkosti výsledku");
+            }
+
+            if (maxResultSize < minResultSize)
+            {
+                throw new Exception("Maximálna veľkosť výsledku musí být větší nebo rovna minimální velikosti výsledku");
+            }
+
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
             Iterations = numberIterations;

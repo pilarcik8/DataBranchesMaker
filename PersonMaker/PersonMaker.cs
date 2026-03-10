@@ -60,10 +60,6 @@ namespace PersonMaker
             {
                 throw new Exception("Žiadna operácia nie je povolená");
             }
-            if (!addingAllowed && !changesAllowed && !removingAllowed)
-            {
-                throw new Exception("Žiadná operácie nebola povolená");
-            }
 
             Iterations = numberIterations;
             AllowChange = changesAllowed;
@@ -75,11 +71,6 @@ namespace PersonMaker
 
         public static void SetMaxAllowed(int maxChanges, int maxRemovals, int maxAdditions)
         {
-            if (maxChanges <= 0 || maxRemovals <= 0 || maxAdditions <= 0) // v gui to ide menit iba ak je povolena operacia cize 0 nikdy nenastane kedze inicializujem s maxvalue
-            {
-                throw new Exception("Hodnata maximálneho výskytu premeny nemôže byť záporná alebo nula");
-            }
-
             MaxAllowedChanges = maxChanges;
             MaxAllowedRemovals = maxRemovals;
             MaxAllowedAdditions = maxAdditions;

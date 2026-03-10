@@ -297,7 +297,7 @@ namespace Interface
                             numberIterations: iteration,
                             removingAllowed: listAllowRemove,
                             addingAllowed: listAllowAdd,
-                            allowShifts: listAllowShift,
+                            shiftingAllowed: listAllowShift,
                             outputDirectory: folder,
                             minResultSize: min!.Value,
                             maxResultSize: max!.Value,

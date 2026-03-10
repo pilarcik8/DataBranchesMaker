@@ -67,14 +67,33 @@ namespace ListMaker
         public static List<string> LeftList = new List<string>();
         public static List<string> BaseList = new List<string>();
 
-        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool allowShifts, string outputDirectory, int minResultSize, int maxResultSize, bool writeSteps)
+        public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool shiftingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool writeSteps)
         {
+            if (numberIterations <= 0)
+            {
+                throw new Exception("Zlá nízka hodnota iterácí");
+            }
+            if (!removingAllowed && !addingAllowed && !shiftingAllowed)
+            {
+                throw new Exception("Žiadna operácia nie je povolená");
+            }
+
+            if (maxResultSize <= 0 || minResultSize <= 0)
+            {
+                throw new Exception("Zlá nízka hodnota veľkosti výsledku");
+            }
+
+            if (maxResultSize < minResultSize)
+            {
+                throw new Exception("Maximálna veľkosť výsledku musí být väčšia alebo rovná ako minimálna velikosť výsledku");
+            }
+
             MinResultSize = minResultSize;
             MaxResultSize = maxResultSize;
             EndIteration = numberIterations;
             AllowRemove = removingAllowed;
             AllowAdd = addingAllowed;
-            AllowShift = allowShifts;
+            AllowShift = shiftingAllowed;
             OutputDirectory = outputDirectory;
             WriteSteps = writeSteps;
         }
@@ -323,23 +342,8 @@ namespace ListMaker
             int remAdd = GetRemainingNumberOfUsesOfAction(ElementAction.ADDITION);
             int remShift = GetRemainingNumberOfUsesOfAction(ElementAction.SHIFT);
             int remRem = GetRemainingNumberOfUsesOfAction(ElementAction.REMOVAL);
-            int remainingMods = remAdd + remShift + remRem;
-
-            if ((remainingMods == 2 && remainingPositions <= 2) || (remainingMods == 1 && remainingPositions <= 1))
-            {
-                var forced = new List<ElementAction>();
-                if (remShift > 0 && CanBeActionExecuted(ElementAction.SHIFT, actualElement, BaseList, branchList)) forced.Add(ElementAction.SHIFT);
-                if (remRem > 0 && CanBeActionExecuted(ElementAction.REMOVAL, actualElement, BaseList, branchList)) forced.Add(ElementAction.REMOVAL);
-                if (remAdd > 0 && CanBeActionExecuted(ElementAction.ADDITION, actualElement, BaseList, branchList)) forced.Add(ElementAction.ADDITION);
-
-                if (forced.Count > 0)
-                {
-                    LastElementWasRemovedFromPosition = false;
-                    return forced[Random.Shared.Next(forced.Count)];
-                }
-            }
             
-            if (ShouldNextActionBeKeep(remainingPositions))
+            if (ShouldNextActionBeKeep())
             {
                 LastElementWasRemovedFromPosition = false;
                 return ElementAction.KEEP;
@@ -347,15 +351,15 @@ namespace ListMaker
 
             var allowed = new List<ElementAction> { };
 
-            if (CanBeActionExecuted(ElementAction.SHIFT, actualElement, BaseList, branchList))
+            if (CanBeActionExecuted(ElementAction.SHIFT, actualElement))
             {
                 allowed.Add(ElementAction.SHIFT);
             }
-            if (CanBeActionExecuted(ElementAction.REMOVAL, actualElement, BaseList, branchList))
+            if (CanBeActionExecuted(ElementAction.REMOVAL, actualElement))
             {
                 allowed.Add(ElementAction.REMOVAL);
             }
-            if (CanBeActionExecuted(ElementAction.ADDITION, actualElement, BaseList, branchList))
+            if (CanBeActionExecuted(ElementAction.ADDITION, actualElement))
             {
                 allowed.Add(ElementAction.ADDITION);
             }
@@ -376,75 +380,39 @@ namespace ListMaker
             };
         }
 
-        private static bool CanBeActionExecuted(ElementAction action, string actualElement, List<string> baseList, List<string> branchList)
+        private static bool CanBeActionExecuted(ElementAction action, string actualElement)
         {
             if (GetRemainingNumberOfUsesOfAction(action) == 0) return false;
-
-            if (UsedShiftItems.Contains(actualElement)) return false; // shift tu pridal prvok
+            // shift tu preniesol prvok ?
+            if (UsedShiftItems.Contains(actualElement)) return false; 
 
             if (action == ElementAction.REMOVAL)
             {
-                if (LastElementWasRemovedFromPosition)
-                {
-                    return false;
-                }
-                if (UsedShiftItems.Contains(actualElement)) return false;
+                if (LastElementWasRemovedFromPosition) return false;
             }
-
             else if (action == ElementAction.SHIFT)
             {
-                if (LastElementWasRemovedFromPosition)
-                {
-                    return false;
-                }
-                if (UsedShiftItems.Contains(actualElement)) return false;                
-                if (ResultList.Count - UsedShiftItems.Distinct().Count() <= 3) return false;
+                if (LastElementWasRemovedFromPosition) return false;
+
+                // aby sme nepocitali elementy ktore boli odstranene z base
+                var list = ResultList.Intersect(BaseList);
+                // je miesto na shift?
+                if (list.Count() - UsedShiftItems.Distinct().Count() <= 3) return false;
             }
             return true; // add, keep
         }
 
-        private static bool ShouldNextActionBeKeep(int remainingPositions)
+        private static bool ShouldNextActionBeKeep()
         {
             int remaningAdd = GetRemainingNumberOfUsesOfAction(ElementAction.ADDITION);
             int remaningShift = GetRemainingNumberOfUsesOfAction(ElementAction.SHIFT);
             int remaningRemove = GetRemainingNumberOfUsesOfAction(ElementAction.REMOVAL);
 
-            int remainingModifications = remaningAdd + remaningShift + remaningRemove;
+            int evenChance = Math.Max(1, ResultList.Count);
 
-            int madeMofifications = MadeAdditions + MadeRemovals + MadeShifts;
-            int evenChance = Math.Max(1, remainingPositions);
-
-            // jedna modifikacia
-            if (TestingOneActionOnce())
+            if (TestingOneActionOnce() || TestingOneActionTwice())
             {
-                if (remainingPositions == 1 && remainingModifications == 1)
-                {
-                    return false;
-                }
-                return Random.Shared.Next(evenChance) != 0;            
-
-            }
-            // dve modifikacie
-            else if (TestingOneActionTwice())
-            {
-
-                if (AllowRemove && remainingPositions <= 3 && remainingModifications != 0)
-                {
-                    return false;
-                }
-                if (AllowShift && remainingPositions < ResultList.Count / 3 && remainingModifications != 1)
-                {
-                    return false;
-                }
-                if (AllowShift && remainingPositions < ResultList.Count - 2 && remainingModifications != 0)
-                {
-                    return false;
-                }
-                if (AllowAdd && remainingPositions <= 2 && remainingModifications != 0)
-                {
-                    return false;
-                }
-                return Random.Shared.Next(evenChance) != 0;
+                return Random.Shared.Next(evenChance) != 0;          
             }
 
             // normalny
