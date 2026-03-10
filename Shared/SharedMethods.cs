@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Shared
 {
-    public class SharedMethods
+    public class SharedMethods  
     {
         public static bool IsValidOutput(bool testingOneActionOnce, int leftModificationCount, int rightModificationCount)
         {
@@ -19,7 +19,7 @@ namespace Shared
             return (leftModificationCount > 0 && rightModificationCount > 0);
         }
 
-        public static bool NextModificationIsOnLeft(bool testingOneActionTwice, int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
+        public static bool ShouldNextModificationBeOnLeft(bool testingOneActionTwice, int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
         {
             // ak left keep prob je 0.7, tak 70% šanca že ďalšia modifikácia bude na pravej strane, a 30% šanca že bude na ľavej strane
             if (!testingOneActionTwice) return (Random.Shared.NextDouble() >= leftKeepProbability);
@@ -93,6 +93,43 @@ namespace Shared
             }
             head += $"Number of modifications: Left: {leftModsCount}, Right: {rightModsCount}\n\n";
             return head;
+        }
+
+        public static int GetNumberOfAllowedActions(bool isAllowedAdd = false, bool isAllowedRemove = false, bool isAllowedChange = false, bool isAllowedShift = false)
+        {
+            int sum = 0;
+            if (isAllowedAdd) sum++;
+            if (isAllowedChange) sum++;
+            if (isAllowedShift) sum++;
+            if (isAllowedRemove) sum++;
+            return sum;
+        }
+
+        public static bool LearnIfCurrentlyTestingOneActionOnce(int numberOfAllowedMods, long sumOfMaxMods)
+        {
+            if (numberOfAllowedMods != 1) return false;
+
+            return sumOfMaxMods == 1;
+        }
+
+        public static bool LearnIfCurrentlyTestingOneActionTwice(int resultSize, int numberOfAllowedMods, long sumOfMaxMods)
+        {
+            if (resultSize < 2) return false;
+
+            if (numberOfAllowedMods != 1) return false;
+
+            return sumOfMaxMods == 2;
+        }
+
+        public static long GetMaxActionsSum(bool isAllowedAdd = false, bool isAllowedRemove = false, bool isAllowedChange = false, bool isAllowedShift = false,
+                                            int maxAdd = 0, int maxRem = 0, int maxChange = 0, int maxShift = 0)
+        {
+            long allowedNumberOfActions = 0;
+            allowedNumberOfActions += isAllowedAdd ? maxAdd : 0;
+            allowedNumberOfActions += isAllowedRemove ? maxRem : 0;
+            allowedNumberOfActions += isAllowedChange ? maxChange : 0;
+            allowedNumberOfActions += isAllowedShift ? maxShift : 0;
+            return allowedNumberOfActions;
         }
     }
 }

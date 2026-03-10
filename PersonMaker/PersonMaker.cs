@@ -1,5 +1,6 @@
 ﻿using Bogus;
 using Shared;
+using System.Collections.Generic;
 using System.Text;
 using System.Xml;
 using static System.Collections.Specialized.BitVector32;
@@ -13,20 +14,6 @@ namespace PersonMaker
         CHANGE,
         REMOVE,
         ADD
-    }
-
-    internal struct Step
-    {
-        public string name { get; }
-        public Person listOfState { get; }
-        public string pathToExport { get; }
-
-        public Step(string name, Person personOfState, string pathToExport)
-        {
-            this.name = name;
-            this.listOfState = personOfState.Clone();
-            this.pathToExport = pathToExport;
-        }
     }
 
     public static class PersonMaker
@@ -50,7 +37,8 @@ namespace PersonMaker
         public static Person? RightPerson { get; set; }
         public static Person? ResultPerson { get; set; }
         public static bool WriteSteps { get; set; } = false;
-
+        public static bool TestingOneActionTwice = false;
+        public static bool TestingOneActionOnce = false;
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory, bool writeSteps)
         {
             if (numberIterations <= 0)
@@ -79,18 +67,22 @@ namespace PersonMaker
 
         public static void Main()
         {
-            var faker = new Faker("en");
+            var faker = new Faker("en"); 
+            int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
+
+            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange);
+            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange,
+                                                                maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxChange: MaxAllowedChanges);
+            TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
+            TestingOneActionTwice = SharedMethods.LearnIfCurrentlyTestingOneActionTwice(baseAtributeCount, nunOfAllowedActions, numbOfMaxMods);
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
                 Init();
 
-                int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
-
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
 
-                Stack<Step> steps = new Stack<Step>();
                 var (leftActions, rightActions) = GetActionsForItem(leftKeepProbability);
 
                 for (int i = 0; i < baseAtributeCount; i++)
@@ -120,8 +112,8 @@ namespace PersonMaker
                         ExecuteAction(LeftPerson!, BasePerson!, i, actionL, faker, iteration);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(leftStepName, LeftPerson!, pathToStepsL));
-                            steps.Push(new Step(baseStepName, BasePerson!, pathToStepsB));
+                            XMLOutput.Export(LeftPerson!, leftStepName, null, pathToStepsL);
+                            XMLOutput.Export(BasePerson!, baseStepName, null, pathToStepsB);
                         }
                     }
                     else if (actionL == AtributeAction.KEEP)
@@ -130,22 +122,16 @@ namespace PersonMaker
                         ExecuteAction(RightPerson!, BasePerson!, i, actionR, faker, iteration);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(rightStepName, RightPerson!, pathToStepsR));
-                            steps.Push(new Step(baseStepName, BasePerson!, pathToStepsB));
+                            XMLOutput.Export(RightPerson!, rightStepName, null, pathToStepsR);
+                            XMLOutput.Export(BasePerson!, baseStepName, null, pathToStepsB);
                         }
                     }
                 }
 
-                // Export krokov - musi byt po ujisteni 3way merge, inak kroky stare + nove sa zmiesaju
-                while (steps.Count > 0)
-                {
-                    var step = steps.Pop();
-                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
-                }
                 leftActions.RemoveAll(x => x == AtributeAction.KEEP);
                 rightActions.RemoveAll(x => x == AtributeAction.KEEP);
 
-                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
+                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice,
                                                 leftKeepProbability: leftKeepProbability,
                                                 iteration: iteration,
                                                 leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
@@ -210,12 +196,12 @@ namespace PersonMaker
             }
 
             // jedna modifikacia
-            if (TestingOneActionOnce())
+            if (TestingOneActionOnce)
             {
                 int index = Random.Shared.Next(typeof(Person).GetProperties().Length);
                 var action = GetNonKeepAction();
 
-                if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
                 {
                     leftActions[index] = action;
                     leftModificationCount++;
@@ -228,7 +214,7 @@ namespace PersonMaker
             }
 
             // dve modifikacie
-            else if (TestingOneActionTwice())
+            else if (TestingOneActionTwice)
             {
                 var action = GetNonKeepAction();
                 var indexes = new HashSet<int>();
@@ -241,7 +227,7 @@ namespace PersonMaker
                         index = Random.Shared.Next(typeof(Person).GetProperties().Length);
                     }
 
-                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
                     {
                         indexes.Add(index);
                         leftActions[index] = action;
@@ -261,7 +247,7 @@ namespace PersonMaker
                 for (int j = 0; j < typeof(Person).GetProperties().Length; j++)
                 {
                     var action = GetAtributeAction();
-                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
                     {
                         leftActions[j] = action;
                         if (action != AtributeAction.KEEP) leftModificationCount++;
@@ -274,7 +260,7 @@ namespace PersonMaker
                 }
             }
             // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu = prepis base/right/left
-            if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+            if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
             {
                 return GetActionsForItem(leftKeepProbability);
             }
@@ -337,7 +323,7 @@ namespace PersonMaker
 
             int evenChance = Math.Max(1, typeof(Person).GetProperties().Length);
 
-            if (TestingOneActionOnce() || TestingOneActionTwice())
+            if (TestingOneActionOnce || TestingOneActionTwice)
             {
                if (Random.Shared.Next(evenChance) != 0) return AtributeAction.KEEP;
             } 
@@ -372,38 +358,6 @@ namespace PersonMaker
                 .RuleFor(p => p.Country, _ => f.Address.Country());
 
             return pf.Generate();
-        }
-        private static bool TestingOneActionOnce()
-        {
-            int allowed = 0;
-            if (AllowAdd) allowed++;
-            if (AllowRemove) allowed++;
-            if (AllowChange) allowed++;
-
-            if (allowed != 1) return false;
-
-            return MaxActionsSum() == 1;
-        }
-
-        private static bool TestingOneActionTwice()
-        {
-            int allowed = 0;
-            if (AllowAdd) allowed++;
-            if (AllowRemove) allowed++;
-            if (AllowChange) allowed++;
-
-            if (allowed != 1) return false;
-
-            return MaxActionsSum() == 2;
-        }
-
-        private static long MaxActionsSum()
-        {
-            long allowedNumberOfActions = 0;
-            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
-            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
-            allowedNumberOfActions += AllowChange ? MaxAllowedChanges : 0;
-            return allowedNumberOfActions;
         }
     }
 }

@@ -12,20 +12,6 @@ namespace SetMaker
         ADD
     }
 
-    internal struct Step
-    {
-        public string name { get; }
-        public HashSet<string> listOfState { get; }
-        public string pathToExport { get; }
-
-        public Step(string name, HashSet<string> hashOfState, string pathToExport)
-        {
-            this.name = name;
-            this.listOfState = new HashSet<string>(hashOfState);
-            this.pathToExport = pathToExport;
-        }
-    }
-
     public static class SetMaker
     {
         static int MadeRemovals = 0;
@@ -47,13 +33,14 @@ namespace SetMaker
         public static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
         public static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
         public static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-
+        public static bool TestingOneActionTwice = false;
+        public static bool TestingOneActionOnce = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle, bool writeSteps)
         {
             if (numberIterations <= 0)
             {
-                throw new Exception("Zlá nízka hodnota iterácí");
+                throw new Exception("Nízka hodnota iterácí");
             }
             if (!removingAllowed && !addingAllowed)
             {
@@ -62,7 +49,7 @@ namespace SetMaker
 
             if (maxResultSize <= 0 || minResultSize <= 0)
             {
-                throw new Exception("Zlá nízka hodnota veľkosti výsledku");
+                throw new Exception("Nízka hodnota veľkosti výsledku");
             }
 
             if (maxResultSize < minResultSize)
@@ -90,14 +77,18 @@ namespace SetMaker
         {
             var faker = new Faker();
 
+            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove);
+            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals);
+            TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
+
             // Vytvorenie základneho (vysledkovy) setu
             for (int iteration = 0; iteration < Iterations; iteration++) // pocet skupin vetiev
             {
                 Init(faker);
+                TestingOneActionTwice = SharedMethods.LearnIfCurrentlyTestingOneActionTwice(ResultSet.Count, nunOfAllowedActions, numbOfMaxMods);
 
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
 
-                Stack<Step> steps = new Stack<Step>();
                 var (leftActions, rightActions) = GetActionsForItem(leftKeepProbability);
 
                 for (int i = 0; i < ResultSet.Count; i++)
@@ -126,8 +117,8 @@ namespace SetMaker
                         ExecuteAction(RightSet, BaseSet, item, rightAct, faker, iteration);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(rightStepName, RightSet, pathToStepsR));
-                            steps.Push(new Step(baseStepName, BaseSet, pathToStepsB));
+                            XMLOutput.Export(RightSet, rightStepName, null, pathToStepsR);
+                            XMLOutput.Export(BaseSet, baseStepName, null, pathToStepsB);
                         }
                     }
                     else if (rightAct == SetAction.KEEP)
@@ -136,16 +127,10 @@ namespace SetMaker
                         ExecuteAction(LeftSet, BaseSet, item, leftAct, faker, iteration);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(leftStepName, LeftSet, pathToStepsL));
-                            steps.Push(new Step(baseStepName, BaseSet, pathToStepsB));
+                            XMLOutput.Export(LeftSet, leftStepName, null, pathToStepsL);
+                            XMLOutput.Export(BaseSet, baseStepName, null, pathToStepsB);
                         }
                     }
-                }
-
-                while (steps.Count > 0)
-                {
-                    var step = steps.Pop();
-                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
                 }
 
                 if (ShuffleBaseLeftRight)
@@ -165,7 +150,7 @@ namespace SetMaker
                 leftActions.RemoveAll(x => x == SetAction.KEEP);
                 rightActions.RemoveAll(x => x == SetAction.KEEP);
 
-                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
+                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice,
                                                 leftKeepProbability: leftKeepProbability,
                                                 iteration: iteration,
                                                 leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
@@ -212,12 +197,12 @@ namespace SetMaker
             }
 
             // jedna modifikacia
-            if (TestingOneActionOnce())
+            if (TestingOneActionOnce)
             {
                 int index = Random.Shared.Next(ResultSet.Count);
                 var action = GetNonKeepAction();
 
-                if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
                 {
                     leftActions[index] = action;
                     leftModificationCount++;
@@ -230,7 +215,7 @@ namespace SetMaker
             }
 
             // dve modifikacie
-            else if (TestingOneActionTwice())
+            else if (TestingOneActionTwice)
             {
                 var action = GetNonKeepAction();
                 var indexes = new HashSet<int>();
@@ -243,7 +228,7 @@ namespace SetMaker
                         index = Random.Shared.Next(ResultSet.Count);
                     }
 
-                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
                     {
                         indexes.Add(index);
                         leftActions[index] = action;
@@ -257,13 +242,13 @@ namespace SetMaker
                     }
                 }
             }
+            // normalny beh
             else
             {
-                // normalny beh
                 for (int j = 0; j < ResultSet.Count; j++)
                 {
                     var action = GetElementAction();
-                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
                     {
                         leftActions[j] = action;
                         if (action != SetAction.KEEP) leftModificationCount++;
@@ -275,8 +260,8 @@ namespace SetMaker
                     }
                 }
             }
-            // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu = prepis base/right/left
-            if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+            // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu
+            if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
             {
                 return GetActionsForItem(leftKeepProbability);
             }
@@ -300,21 +285,25 @@ namespace SetMaker
 
         private static void ExecuteAction(HashSet<string> branchSet, HashSet<string> baseSet, string item, SetAction action, Faker faker, int iteration)
         {
-            var messege = $"'{action}' for item: '{item}'";
             if (action == SetAction.REMOVE)
             {
+                ChangeLogText += $"'REMOVING' for item: '{item}'\n";
                 baseSet.Remove(item);
                 branchSet.Remove(item);
                 MadeRemovals++;
             }
             else if (action == SetAction.ADD)
             {
+                ChangeLogText += $"'ADDING' for item: '{item}'\n";
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseSet.ToList(), LeftSet.ToList(), RightSet.ToList(), ResultSet.ToList());
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
                 MadeAdditions++;
             }
-            ChangeLogText += messege + "\n";
+            else if (action == SetAction.KEEP)
+            {
+                ChangeLogText += $"'KEEPING' for item: '{item}'\n";
+            }
         }
 
         private static SetAction GetElementAction()
@@ -346,38 +335,6 @@ namespace SetMaker
                 (list[i], list[j]) = (list[j], list[i]);
             }
             return list;
-        }
-
-        private static bool TestingOneActionOnce()
-        {
-            int allowed = 0;
-            if (AllowAdd) allowed++;
-            if (AllowRemove) allowed++;
-
-            if (allowed != 1) return false;
-
-            return MaxActionsSum() == 1;
-        }
-
-        private static bool TestingOneActionTwice()
-        {
-            if (ResultSet.Count < 2) return false;
-
-            int allowed = 0;
-            if (AllowAdd) allowed++;
-            if (AllowRemove) allowed++;
-
-            if (allowed != 1) return false;
-
-            return MaxActionsSum() == 2;
-        }
-
-        private static long MaxActionsSum()
-        {
-            long allowedNumberOfActions = 0;
-            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
-            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
-            return allowedNumberOfActions;
         }
     }
 }

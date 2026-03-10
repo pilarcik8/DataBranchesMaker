@@ -66,12 +66,14 @@ namespace ListMaker
         public static List<string> RightList = new List<string>();
         public static List<string> LeftList = new List<string>();
         public static List<string> BaseList = new List<string>();
+        public static bool TestingOneActionTwice = false;
+        public static bool TestingOneActionOnce = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool shiftingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool writeSteps)
         {
             if (numberIterations <= 0)
             {
-                throw new Exception("Zlá nízka hodnota iterácí");
+                throw new Exception("Nízka hodnota iterácí");
             }
             if (!removingAllowed && !addingAllowed && !shiftingAllowed)
             {
@@ -80,7 +82,7 @@ namespace ListMaker
 
             if (maxResultSize <= 0 || minResultSize <= 0)
             {
-                throw new Exception("Zlá nízka hodnota veľkosti výsledku");
+                throw new Exception("Nízka hodnota veľkosti výsledku");
             }
 
             if (maxResultSize < minResultSize)
@@ -108,16 +110,23 @@ namespace ListMaker
         public static void Main()
         {
             var faker = new Faker();
+            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift);
+            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift,
+                                                                maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxShift: MaxAllowedShifts);
+            TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
+
             for (int iteration = 0; iteration < EndIteration; iteration++)
             {
                 Init(faker);
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
+                int elementCount = ResultList.Count;
+
+                TestingOneActionTwice = SharedMethods.LearnIfCurrentlyTestingOneActionTwice(elementCount, nunOfAllowedActions, numbOfMaxMods);
 
                 int leftModificationCount = 0;
                 int rightModificationCount = 0;
 
                 Stack<Step> steps = new Stack<Step>();
-                int elementCount = ResultList.Count;
 
                 // Akcie sa vyberu a rovno vykonaju
                 for (int i = 0; i < elementCount; i++)
@@ -169,7 +178,7 @@ namespace ListMaker
                 }
 
                 // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+                if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;
@@ -191,7 +200,7 @@ namespace ListMaker
                 // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
-                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
+                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice,
                                                                 leftKeepProbability: leftKeepProbability,
                                                                 iteration: iteration,
                                                                 leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
@@ -206,7 +215,7 @@ namespace ListMaker
         private static (ElementAction, ElementAction) ChooseLeftRightAction(int leftModificationCount, int rightModificationCount, double leftKeepProbability, int remainingPositions, string item) {
             ElementAction leftAct, rightAct;
 
-            if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+            if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
             {
                 leftAct = ChooseAction(LeftList, remainingPositions, item);
                 rightAct = ElementAction.KEEP;
@@ -291,7 +300,7 @@ namespace ListMaker
                 int elementAtBaseIndex = baseList.IndexOf(item);
 
                 // výmena (swap) susediacich elementov spolu s dalším shiftom môže spôsobiť poradie elementov ktoré sa nedá nájť deteminicky
-                if (!TestingOneActionOnce())
+                if (!TestingOneActionOnce)
                 {
                     if (elementAtBaseIndex > 0)
                     {
@@ -410,7 +419,7 @@ namespace ListMaker
 
             int evenChance = Math.Max(1, ResultList.Count);
 
-            if (TestingOneActionOnce() || TestingOneActionTwice())
+            if (TestingOneActionOnce || TestingOneActionTwice)
             {
                 return Random.Shared.Next(evenChance) != 0;          
             }
@@ -431,39 +440,6 @@ namespace ListMaker
             }
 
             return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
-        }
-
-        private static bool TestingOneActionOnce()
-        {
-            int allowed = 0;
-            if (AllowAdd) allowed++;
-            if (AllowRemove) allowed++;
-            if (AllowShift) allowed++;
-
-            if (allowed != 1) return false;
-
-            return MaxActionsSum() == 1;
-        }
-
-        private static bool TestingOneActionTwice()
-        {
-            int allowed = 0;
-            if (AllowAdd) allowed++;
-            if (AllowRemove) allowed++;
-            if (AllowShift) allowed++;
-
-            if (allowed != 1) return false;
-
-            return MaxActionsSum() == 2;
-        }
-
-        private static long MaxActionsSum()
-        {
-            long allowedNumberOfActions = 0;
-            allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
-            allowedNumberOfActions += AllowShift ? MaxAllowedShifts : 0;
-            allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
-            return allowedNumberOfActions;
         }
     }
 }
