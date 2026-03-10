@@ -2,6 +2,7 @@
 using Shared;
 using System.Text;
 using System.Xml;
+using static System.Collections.Specialized.BitVector32;
 using Person = Shared.Person;
 
 namespace PersonMaker
@@ -89,10 +90,9 @@ namespace PersonMaker
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
 
-                int leftModificationCount = 0;
-                int rightModificationCount = 0;
-
                 Stack<Step> steps = new Stack<Step>();
+                var (leftActions, rightActions) = GetActionsForItem(leftKeepProbability);
+
                 for (int i = 0; i < baseAtributeCount; i++)
                 {
                     var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
@@ -105,20 +105,8 @@ namespace PersonMaker
                     string baseStepName = "base_step" + i;
 
                     // Generovanie akcii pre pravy a lavy branch
-                    AtributeAction actionR, actionL;
-
-                    int remainingPositions = baseAtributeCount - i;
-
-                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
-                    {
-                        actionL = GetAtributeAction(remainingPositions);
-                        actionR = AtributeAction.KEEP;
-                    }
-                    else
-                    {
-                        actionL = AtributeAction.KEEP;
-                        actionR = GetAtributeAction(remainingPositions);
-                    }
+                    AtributeAction actionR = rightActions[i];
+                    AtributeAction actionL = leftActions[i];
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
@@ -128,7 +116,6 @@ namespace PersonMaker
                     }
                     else if (actionR == AtributeAction.KEEP)
                     {
-                        leftModificationCount++;
                         ChangeLogText += "L, B:\n";
                         ExecuteAction(LeftPerson!, BasePerson!, i, actionL, faker, iteration);
                         if (WriteSteps)
@@ -139,7 +126,6 @@ namespace PersonMaker
                     }
                     else if (actionL == AtributeAction.KEEP)
                     {
-                        rightModificationCount++;
                         ChangeLogText += "R, B:\n";
                         ExecuteAction(RightPerson!, BasePerson!, i, actionR, faker, iteration);
                         if (WriteSteps)
@@ -150,25 +136,19 @@ namespace PersonMaker
                     }
                 }
 
-                // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
-                {
-                    steps.Clear();
-                    iteration--;
-                    continue;
-                }
-
                 // Export krokov - musi byt po ujisteni 3way merge, inak kroky stare + nove sa zmiesaju
                 while (steps.Count > 0)
                 {
                     var step = steps.Pop();
                     XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
                 }
+                leftActions.RemoveAll(x => x == AtributeAction.KEEP);
+                rightActions.RemoveAll(x => x == AtributeAction.KEEP);
 
                 string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice(),
                                                 leftKeepProbability: leftKeepProbability,
                                                 iteration: iteration,
-                                                leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
+                                                leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
                                                 allowAdd: AllowAdd, allowRemove: AllowRemove, allowChange: AllowChange,
                                                 madeAdditions: MadeAdditions, madeRemovals: MadeRemovals, madeChanges: MadeChanges,
                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedChanges: MaxAllowedChanges);
@@ -199,6 +179,106 @@ namespace PersonMaker
             LeftPerson = ResultPerson.Clone();
             RightPerson = ResultPerson.Clone();
             BasePerson = ResultPerson.Clone();
+        }
+
+        private static (List<AtributeAction> leftActions, List<AtributeAction> rightActions) GetActionsForItem(double leftKeepProbability)
+        {
+            List<AtributeAction> leftActions = new List<AtributeAction>();
+            List<AtributeAction> rightActions = new List<AtributeAction>();
+
+            int leftModificationCount = 0;
+            int rightModificationCount = 0;
+
+            for (int i = 0; i < typeof(Person).GetProperties().Length; i++)
+            {
+                leftActions.Add(AtributeAction.KEEP);
+                rightActions.Add(AtributeAction.KEEP);
+            }
+
+            // helper
+            AtributeAction GetNonKeepAction()
+            {
+                int sum = 0;
+                if (AllowAdd) sum++;
+                if (AllowChange) sum++;
+                if (AllowRemove) sum++;
+
+                if (sum != 1) throw new InvalidOperationException("Nespravne pouzity GetNonKeepAction");
+                if (AllowAdd) return AtributeAction.ADD;
+                if (AllowChange) return AtributeAction.CHANGE;
+                return AtributeAction.REMOVE;
+            }
+
+            // jedna modifikacia
+            if (TestingOneActionOnce())
+            {
+                int index = Random.Shared.Next(typeof(Person).GetProperties().Length);
+                var action = GetNonKeepAction();
+
+                if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                {
+                    leftActions[index] = action;
+                    leftModificationCount++;
+                }
+                else
+                {
+                    rightActions[index] = action;
+                    rightModificationCount++;
+                }
+            }
+
+            // dve modifikacie
+            else if (TestingOneActionTwice())
+            {
+                var action = GetNonKeepAction();
+                var indexes = new HashSet<int>();
+
+                for (int i = 0; i < 2; i++)
+                {
+                    int index = Random.Shared.Next(typeof(Person).GetProperties().Length);
+                    while (indexes.Contains(index))
+                    {
+                        index = Random.Shared.Next(typeof(Person).GetProperties().Length);
+                    }
+
+                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    {
+                        indexes.Add(index);
+                        leftActions[index] = action;
+                        leftModificationCount++;
+                    }
+                    else
+                    {
+                        indexes.Add(index);
+                        rightActions[index] = action;
+                        rightModificationCount++;
+                    }
+                }
+            }
+            else
+            {
+                // normalny beh
+                for (int j = 0; j < typeof(Person).GetProperties().Length; j++)
+                {
+                    var action = GetAtributeAction();
+                    if (SharedMethods.NextModificationIsOnLeft(TestingOneActionTwice(), leftModificationCount, rightModificationCount, leftKeepProbability))
+                    {
+                        leftActions[j] = action;
+                        if (action != AtributeAction.KEEP) leftModificationCount++;
+                    }
+                    else
+                    {
+                        rightActions[j] = action;
+                        if (action != AtributeAction.KEEP) rightModificationCount++;
+                    }
+                }
+            }
+            // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu = prepis base/right/left
+            if (!SharedMethods.IsValidOutput(TestingOneActionOnce(), leftModificationCount, rightModificationCount))
+            {
+                return GetActionsForItem(leftKeepProbability);
+            }
+            return (leftActions, rightActions);
         }
         private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
         {
@@ -241,13 +321,11 @@ namespace PersonMaker
         }
 
         // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
-        private static AtributeAction GetAtributeAction(int remainingPositions)
+        private static AtributeAction GetAtributeAction()
         {
             int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
             int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;
             int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
-
-            int remainingModifications = remaningAdd + remaningChange + remaningRemove;
 
             var availableMods = new List<AtributeAction>();
             if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
@@ -257,27 +335,19 @@ namespace PersonMaker
 
             var madeModifications = MadeAdditions + MadeChanges + MadeRemovals;
 
-            // týmto sa ujistíme, že aspoň jedna modifikácia nastane pred koncom iterácie
-            if (remainingPositions == 1 && madeModifications == 0 && availableMods.Count > 0)
+            int evenChance = Math.Max(1, typeof(Person).GetProperties().Length);
+
+            if (TestingOneActionOnce() || TestingOneActionTwice())
             {
-                return availableMods[Random.Shared.Next(availableMods.Count)];
+               if (Random.Shared.Next(evenChance) != 0) return AtributeAction.KEEP;
+            } 
+            else
+            {
+                availableMods.Add(AtributeAction.KEEP);
             }
 
-            // ak zostava jedna modifikacia, rovnomerna pravdepodobnost pre kazdy atribut
-            if (remainingModifications == 1)
-            {
-                remainingPositions = Math.Max(1, remainingPositions);
-                if (Random.Shared.Next(remainingPositions) != 0)
-                {
-                    return AtributeAction.KEEP;
-                }
-            }
-
-            var allowed = new List<AtributeAction> { AtributeAction.KEEP };
-            allowed.AddRange(availableMods);
-
-            int index = Random.Shared.Next(allowed.Count);
-            return allowed[index];
+            int index = Random.Shared.Next(availableMods.Count);
+            return availableMods.Count == 0 ? AtributeAction.KEEP : availableMods[index];
         }
 
         private static Person CreatePersonWithPlaceholders()
@@ -332,6 +402,7 @@ namespace PersonMaker
             long allowedNumberOfActions = 0;
             allowedNumberOfActions += AllowAdd ? MaxAllowedAdditions : 0;
             allowedNumberOfActions += AllowRemove ? MaxAllowedRemovals : 0;
+            allowedNumberOfActions += AllowChange ? MaxAllowedChanges : 0;
             return allowedNumberOfActions;
         }
     }
