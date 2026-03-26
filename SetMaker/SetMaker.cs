@@ -14,8 +14,8 @@ namespace SetMaker
 
     public static class SetMaker
     {
-        static int MadeRemovals = 0;
-        static int MadeAdditions = 0;
+        static int PreperedRemovals = 0;
+        static int PreperedAdditions = 0;
 
         //Konfigurácia generovania dát
         public static int MaxResultSize { get; set; } = 10;
@@ -155,7 +155,7 @@ namespace SetMaker
                                                 iteration: iteration,
                                                 leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
                                                 allowAdd: AllowAdd, allowRemove: AllowRemove,
-                                                madeAdditions: MadeAdditions, madeRemovals: MadeRemovals,
+                                                madeAdditions: PreperedAdditions, madeRemovals: PreperedRemovals,
                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals);
                 ChangeLogText = head + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
@@ -169,8 +169,8 @@ namespace SetMaker
             RightSet = new HashSet<string>(BaseSet, StringComparer.Ordinal);
             ResultSet = new HashSet<string>(BaseSet, StringComparer.Ordinal);
 
-            MadeRemovals = 0;
-            MadeAdditions = 0;
+            PreperedRemovals = 0;
+            PreperedAdditions = 0;
             ChangeLogText = string.Empty;
         }
 
@@ -263,6 +263,8 @@ namespace SetMaker
             // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu
             if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
             {
+                PreperedAdditions = 0;
+                PreperedRemovals = 0;
                 return GetActionsForItem(leftKeepProbability);
             }
             return (leftActions, rightActions);
@@ -290,7 +292,6 @@ namespace SetMaker
                 ChangeLogText += $"'REMOVING' for item: '{item}'\n";
                 baseSet.Remove(item);
                 branchSet.Remove(item);
-                MadeRemovals++;
             }
             else if (action == SetAction.ADD)
             {
@@ -298,7 +299,6 @@ namespace SetMaker
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseSet.ToList(), LeftSet.ToList(), RightSet.ToList(), ResultSet.ToList());
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
-                MadeAdditions++;
             }
             else if (action == SetAction.KEEP)
             {
@@ -310,8 +310,8 @@ namespace SetMaker
         {
             var allowed = new List<SetAction> { SetAction.KEEP };
 
-            int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
-            int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
+            int remaningAdd = AllowAdd ? MaxAllowedAdditions - PreperedAdditions : 0;
+            int remaningRemove = AllowRemove ? MaxAllowedRemovals - PreperedRemovals : 0;
 
             if (remaningRemove > 0)
             {
@@ -323,7 +323,19 @@ namespace SetMaker
             }
 
             int index = Random.Shared.Next(allowed.Count);
-            return allowed[index];
+
+            var action = allowed[index];
+            switch (action)
+            {
+                case SetAction.ADD:
+                    PreperedAdditions++;
+                    break;
+                case SetAction.REMOVE:
+                    PreperedRemovals++;
+                    break;
+            }
+
+            return action;
         }
 
         // Fisher–Yates algoritmus pre náhodné premiešanie prvkov v zozname

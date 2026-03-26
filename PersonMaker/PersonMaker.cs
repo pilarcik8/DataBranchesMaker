@@ -18,9 +18,9 @@ namespace PersonMaker
 
     public static class PersonMaker
     {
-        private static int MadeChanges = 0;
-        private static int MadeRemovals = 0;
-        private static int MadeAdditions = 0;
+        private static int PreperedChanges = 0;
+        private static int PreperedRemovals = 0;
+        private static int PreperedAdditions = 0;
 
         public static int Iterations { get; set; } = 5;
         public static bool AllowChange { get; set; } = true;
@@ -136,7 +136,7 @@ namespace PersonMaker
                                                 iteration: iteration,
                                                 leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
                                                 allowAdd: AllowAdd, allowRemove: AllowRemove, allowChange: AllowChange,
-                                                madeAdditions: MadeAdditions, madeRemovals: MadeRemovals, madeChanges: MadeChanges,
+                                                madeAdditions: PreperedAdditions, madeRemovals: PreperedRemovals, madeChanges: PreperedChanges,
                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedChanges: MaxAllowedChanges);
                 ChangeLogText = head + ChangeLogText;
 
@@ -153,9 +153,9 @@ namespace PersonMaker
 
         private static void Init()
         {
-            MadeChanges = 0;
-            MadeRemovals = 0;
-            MadeAdditions = 0;
+            PreperedChanges = 0;
+            PreperedRemovals = 0;
+            PreperedAdditions = 0;
 
             ChangeLogText = string.Empty;
 
@@ -262,7 +262,11 @@ namespace PersonMaker
             // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu = prepis base/right/left
             if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
             {
+                PreperedAdditions = 0;
+                PreperedRemovals = 0;
+                PreperedChanges = 0;
                 return GetActionsForItem(leftKeepProbability);
+
             }
             return (leftActions, rightActions);
         }
@@ -279,7 +283,6 @@ namespace PersonMaker
                 ChangeLogText += $"Changed attribute: '{branchPerson.GetAttributeName(i)}' to '{changeValue}'\n";
 
                 basePerson.SetAttribute(i, changeValue);
-                MadeChanges++;
             }
             else if (action == AtributeAction.REMOVE)
             {
@@ -289,7 +292,6 @@ namespace PersonMaker
 
                 branchPerson.RemoveAtribute(i);
                 basePerson.RemoveAtribute(i);
-                MadeRemovals++;
             }
             else if (action == AtributeAction.ADD)
             {
@@ -301,39 +303,36 @@ namespace PersonMaker
                 basePerson.AddAttribute(i, faker, valueOfNewAttribute);
 
                 ChangeLogText += $"Added new attribute named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}' was added before attribute '{attributeBeforeAdd}'\n";
-
-                MadeAdditions++;
             }
         }
 
-        // Ak su vsetky vycerpane alebo vypnute, vrati KEEP
         private static AtributeAction GetAtributeAction()
         {
-            int remaningAdd = AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0;
-            int remaningChange = AllowChange ? MaxAllowedChanges - MadeChanges : 0;
-            int remaningRemove = AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0;
+            int remaningAdd = AllowAdd ? MaxAllowedAdditions - PreperedAdditions : 0;
+            int remaningChange = AllowChange ? MaxAllowedChanges - PreperedChanges : 0;
+            int remaningRemove = AllowRemove ? MaxAllowedRemovals - PreperedRemovals : 0;
 
-            var availableMods = new List<AtributeAction>();
+            var availableMods = new List<AtributeAction>() { AtributeAction.KEEP };
             if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
             if (remaningRemove > 0) availableMods.Add(AtributeAction.REMOVE);
             if (remaningAdd > 0) availableMods.Add(AtributeAction.ADD);
 
-
-            var madeModifications = MadeAdditions + MadeChanges + MadeRemovals;
-
-            int evenChance = Math.Max(1, typeof(Person).GetProperties().Length);
-
-            if (TestingOneActionOnce || TestingOneActionTwice)
+            int index = Random.Shared.Next(availableMods.Count);
+            var action = availableMods[index];
+            switch (action)
             {
-               if (Random.Shared.Next(evenChance) != 0) return AtributeAction.KEEP;
-            } 
-            else
-            {
-                availableMods.Add(AtributeAction.KEEP);
+                case AtributeAction.ADD:
+                    PreperedAdditions++;
+                    break;
+                case AtributeAction.REMOVE:
+                    PreperedRemovals++;
+                    break;
+                case AtributeAction.CHANGE:
+                    PreperedChanges++;
+                    break;
             }
 
-            int index = Random.Shared.Next(availableMods.Count);
-            return availableMods.Count == 0 ? AtributeAction.KEEP : availableMods[index];
+            return action;
         }
 
         private static Person CreatePersonWithPlaceholders()
