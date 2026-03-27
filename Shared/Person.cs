@@ -74,9 +74,9 @@ namespace Shared
         public string? County { get; set; } //12
         /*---------------------------------------*/
         [XmlElement(Order = 27)]
-        public string? State { get; set; } //13
-        [XmlElement(Order = 28)]
         public string? StateAbbr;
+        [XmlElement(Order = 28)]
+        public string? State { get; set; } //13
         /*---------------------------------------*/
         [XmlElement(Order = 29)]
         public string? ZipPlus4;
