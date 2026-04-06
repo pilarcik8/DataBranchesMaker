@@ -8,22 +8,22 @@ using Person = Shared.Person;
 
 namespace PersonMaker
 {
-    internal enum AtributeAction
-    {
-        KEEP,
-        CHANGE,
-        REMOVE,
-        ADD
-    }
-    struct RowAction
-    {
-        public AtributeAction Right;
-        public AtributeAction Left;
-        public AtributeAction Base => Right == AtributeAction.KEEP ? Left : Right;
-    }
-
     public static class PersonMaker
     {
+        private enum AtributeAction
+        {
+            KEEP,
+            CHANGE,
+            REMOVE,
+            ADD
+        }
+        private struct RowAction
+        {
+            public AtributeAction Right;
+            public AtributeAction Left;
+            public AtributeAction Base => Right == AtributeAction.KEEP ? Left : Right;
+        }
+
         private static int PreperedChanges = 0;
         private static int PreperedRemovals = 0;
         private static int PreperedAdditions = 0;

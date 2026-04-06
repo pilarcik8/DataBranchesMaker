@@ -7,7 +7,7 @@ namespace Interface
 {
     public partial class MainWindow : Window
     {
-        enum ExportTarget
+        private enum ExportTarget
         {
             Person,
             List,

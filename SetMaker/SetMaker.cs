@@ -7,21 +7,21 @@ using System.Text;
 
 namespace SetMaker
 {
-    internal enum SetAction
-    {
-        KEEP,
-        REMOVE,
-        ADD
-    }
-    struct RowAction
-    {
-        public SetAction Right;
-        public SetAction Left;
-        public SetAction Base => Right == SetAction.KEEP ? Left : Right;
-    }
-
     public static class SetMaker
     {
+        private enum SetAction
+        {
+            KEEP,
+            REMOVE,
+            ADD
+        }
+        private struct RowAction
+        {
+            public SetAction Right;
+            public SetAction Left;
+            public SetAction Base => Right == SetAction.KEEP ? Left : Right;
+        }
+
         static int PreperedRemovals = 0;
         static int PreperedAdditions = 0;
 

@@ -10,30 +10,31 @@ using System.Xml.Serialization;
 
 namespace ListMaker
 {
-    internal enum ElementAction
-    {
-        KEEP,
-        REMOVAL,
-        ADDITION,
-        SHIFT
-    }
-
-    internal struct Step
-    {
-        public string name { get; }
-        public List<string> listOfState { get; }
-        public string pathToExport { get; }
-
-        public Step(string name, List<string> listOfState, string pathToExport)
-        {
-            this.name = name;
-            this.listOfState = new List<string>(listOfState);
-            this.pathToExport = pathToExport;
-        }
-    }
-
     public static class ListMaker
     {
+        private enum ListAction
+        {
+            KEEP,
+            REMOVAL,
+            ADDITION,
+            SHIFT
+        }
+
+        // Kedže negenerujeme sekvenciu akcií, ak kroky tvorime počas prococesu modifikácií, ak budeme musieť opakovat iteraciu, kroky sa nám nezamiesajú so starímy
+        private class Step
+        {
+            public string name { get; }
+            public List<string> listOfState { get; }
+            public string pathToExport { get; }
+
+            public Step(string name, List<string> listOfState, string pathToExport)
+            {
+                this.name = name;
+                this.listOfState = new List<string>(listOfState);
+                this.pathToExport = pathToExport;
+            }
+        }
+
         // Počet vykonaných akcií v iterácii, resetuje sa na začiatku každej iterácie
         private static int MadeRemovals = 0;
         private static int MadeAdditions = 0;
@@ -147,17 +148,17 @@ namespace ListMaker
                     var item = ResultList[i];
                     int remainingPositions = elementCount - i;
 
-                    (ElementAction, ElementAction) leftAndRightAction = ChooseLeftRightAction(leftModificationCount, rightModificationCount, leftKeepProbability, remainingPositions, item);
-                    ElementAction leftAct = leftAndRightAction.Item1;
-                    ElementAction rightAct = leftAndRightAction.Item2;
+                    (ListAction, ListAction) leftAndRightAction = ChooseLeftRightAction(leftModificationCount, rightModificationCount, leftKeepProbability, remainingPositions, item);
+                    ListAction leftAct = leftAndRightAction.Item1;
+                    ListAction rightAct = leftAndRightAction.Item2;
 
-                    if (leftAct == ElementAction.KEEP && rightAct == ElementAction.KEEP)
+                    if (leftAct == ListAction.KEEP && rightAct == ListAction.KEEP)
                     {
                         ChangeLogText += "L, R, B:\n";
                         // či dám left/right nezalezi
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
-                    else if (leftAct == ElementAction.KEEP)
+                    else if (leftAct == ListAction.KEEP)
                     {
                         ChangeLogText += "R, B:\n";
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
@@ -168,7 +169,7 @@ namespace ListMaker
                             steps.Push(new Step(baseStepName, BaseList, pathToStepsB));
                         }
                     }
-                    else if (rightAct == ElementAction.KEEP)
+                    else if (rightAct == ListAction.KEEP)
                     {
                         ChangeLogText += "L, B:\n";
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
@@ -216,17 +217,17 @@ namespace ListMaker
             }
         }
 
-        private static (ElementAction, ElementAction) ChooseLeftRightAction(int leftModificationCount, int rightModificationCount, double leftKeepProbability, int remainingPositions, string item) {
-            ElementAction leftAct, rightAct;
+        private static (ListAction, ListAction) ChooseLeftRightAction(int leftModificationCount, int rightModificationCount, double leftKeepProbability, int remainingPositions, string item) {
+            ListAction leftAct, rightAct;
 
             if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
             {
                 leftAct = ChooseAction(LeftList, remainingPositions, item);
-                rightAct = ElementAction.KEEP;
+                rightAct = ListAction.KEEP;
             }
             else
             {
-                leftAct = ElementAction.KEEP;
+                leftAct = ListAction.KEEP;
                 rightAct = ChooseAction(RightList, remainingPositions, item);
             }
             return (leftAct, rightAct);
@@ -266,13 +267,13 @@ namespace ListMaker
             return list;
         }
 
-        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ElementAction action, Faker faker, int iteration)
+        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)
         {
-            if (action == ElementAction.KEEP)
+            if (action == ListAction.KEEP)
             {
                 ChangeLogText += $"Keeping item: '{item}'\n";
             }
-            else if (action == ElementAction.REMOVAL)
+            else if (action == ListAction.REMOVAL)
             {
                 int baseIndex = baseList.IndexOf(item);
                 int branchIndex = branchList.IndexOf(item);
@@ -284,7 +285,7 @@ namespace ListMaker
                 branchList.Remove(item);
                 MadeRemovals++;
             }
-            else if (action == ElementAction.ADDITION)
+            else if (action == ListAction.ADDITION)
             {
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseList, LeftList, RightList, ResultList);
 
@@ -298,7 +299,7 @@ namespace ListMaker
 
                 MadeAdditions++;
             }
-            else if (action == ElementAction.SHIFT)
+            else if (action == ListAction.SHIFT)
             {
                 UsedShiftItems.Add(item);
                 int elementAtBaseIndex = baseList.IndexOf(item);
@@ -350,60 +351,60 @@ namespace ListMaker
             }
         }
 
-        private static ElementAction ChooseAction(List<string> branchList, int remainingPositions, string actualElement)
+        private static ListAction ChooseAction(List<string> branchList, int remainingPositions, string actualElement)
         {
-            int remAdd = GetRemainingNumberOfUsesOfAction(ElementAction.ADDITION);
-            int remShift = GetRemainingNumberOfUsesOfAction(ElementAction.SHIFT);
-            int remRem = GetRemainingNumberOfUsesOfAction(ElementAction.REMOVAL);
+            int remAdd = GetRemainingNumberOfUsesOfAction(ListAction.ADDITION);
+            int remShift = GetRemainingNumberOfUsesOfAction(ListAction.SHIFT);
+            int remRem = GetRemainingNumberOfUsesOfAction(ListAction.REMOVAL);
             
             if (ShouldNextActionBeKeep())
             {
                 LastElementWasRemovedFromPosition = false;
-                return ElementAction.KEEP;
+                return ListAction.KEEP;
             }
 
-            var allowed = new List<ElementAction> { };
+            var allowed = new List<ListAction> { };
 
-            if (CanBeActionExecuted(ElementAction.SHIFT, actualElement))
+            if (CanBeActionExecuted(ListAction.SHIFT, actualElement))
             {
-                allowed.Add(ElementAction.SHIFT);
+                allowed.Add(ListAction.SHIFT);
             }
-            if (CanBeActionExecuted(ElementAction.REMOVAL, actualElement))
+            if (CanBeActionExecuted(ListAction.REMOVAL, actualElement))
             {
-                allowed.Add(ElementAction.REMOVAL);
+                allowed.Add(ListAction.REMOVAL);
             }
-            if (CanBeActionExecuted(ElementAction.ADDITION, actualElement))
+            if (CanBeActionExecuted(ListAction.ADDITION, actualElement))
             {
-                allowed.Add(ElementAction.ADDITION);
+                allowed.Add(ListAction.ADDITION);
             }
 
             LastElementWasRemovedFromPosition = false;
-            return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ElementAction.KEEP;
+            return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ListAction.KEEP;
         }
 
-        private static int GetRemainingNumberOfUsesOfAction(ElementAction action)
+        private static int GetRemainingNumberOfUsesOfAction(ListAction action)
         {
             return action switch
             {
-                ElementAction.ADDITION => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
-                ElementAction.REMOVAL => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
-                ElementAction.SHIFT => AllowShift ? MaxAllowedShifts - MadeShifts : 0,
-                ElementAction.KEEP => int.MaxValue, // KEEP nie je obmedzený
+                ListAction.ADDITION => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
+                ListAction.REMOVAL => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
+                ListAction.SHIFT => AllowShift ? MaxAllowedShifts - MadeShifts : 0,
+                ListAction.KEEP => int.MaxValue, // KEEP nie je obmedzený
                 _ => throw new InvalidOperationException($"Unexpected action: {action}")
             };
         }
 
-        private static bool CanBeActionExecuted(ElementAction action, string actualElement)
+        private static bool CanBeActionExecuted(ListAction action, string actualElement)
         {
             if (GetRemainingNumberOfUsesOfAction(action) == 0) return false;
             // shift tu preniesol prvok ?
             if (UsedShiftItems.Contains(actualElement)) return false; 
 
-            if (action == ElementAction.REMOVAL)
+            if (action == ListAction.REMOVAL)
             {
                 if (LastElementWasRemovedFromPosition) return false;
             }
-            else if (action == ElementAction.SHIFT)
+            else if (action == ListAction.SHIFT)
             {
                 if (LastElementWasRemovedFromPosition) return false;
 
@@ -417,9 +418,9 @@ namespace ListMaker
 
         private static bool ShouldNextActionBeKeep()
         {
-            int remaningAdd = GetRemainingNumberOfUsesOfAction(ElementAction.ADDITION);
-            int remaningShift = GetRemainingNumberOfUsesOfAction(ElementAction.SHIFT);
-            int remaningRemove = GetRemainingNumberOfUsesOfAction(ElementAction.REMOVAL);
+            int remaningAdd = GetRemainingNumberOfUsesOfAction(ListAction.ADDITION);
+            int remaningShift = GetRemainingNumberOfUsesOfAction(ListAction.SHIFT);
+            int remaningRemove = GetRemainingNumberOfUsesOfAction(ListAction.REMOVAL);
 
             int evenChance = Math.Max(1, ResultList.Count);
 
@@ -429,21 +430,21 @@ namespace ListMaker
             }
 
             // normalny
-            var allowed = new List<ElementAction> { ElementAction.KEEP };
+            var allowed = new List<ListAction> { ListAction.KEEP };
             if (remaningAdd > 0)
             {
-                allowed.Add(ElementAction.ADDITION);
+                allowed.Add(ListAction.ADDITION);
             }
             if (remaningRemove > 0)
             {
-                allowed.Add(ElementAction.REMOVAL);
+                allowed.Add(ListAction.REMOVAL);
             }
             if (remaningShift > 0)
             {
-                allowed.Add(ElementAction.SHIFT);
+                allowed.Add(ListAction.SHIFT);
             }
 
-            return allowed[Random.Shared.Next(allowed.Count)] == ElementAction.KEEP;
+            return allowed[Random.Shared.Next(allowed.Count)] == ListAction.KEEP;
         }
     }
 }
