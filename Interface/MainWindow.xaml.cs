@@ -161,7 +161,7 @@ namespace Interface
             {
                 if (!int.TryParse(IterationTextBox.Text, out int iteration) || iteration <= 0)
                 {
-                    StatusTextBlock.Text = "Iteration must be a positive integer.";
+                    StatusTextBlock.Text = "Počet iterácí musí by pozitívne a nenulové číslo.";
                     return;
                 }
 
@@ -174,19 +174,19 @@ namespace Interface
 
                 if (selected == ExportTarget.List || selected == ExportTarget.HashSet)
                 {
-                    if (!int.TryParse(MinSizeTextBox.Text, out int minVal) || minVal < 0)
+                    if (!int.TryParse(MinSizeTextBox.Text, out int minVal) || minVal < 1)
                     {
-                        StatusTextBlock.Text = "Min size must be a non-negative integer.";
+                        StatusTextBlock.Text = "Mininimána velkosť musí by pozitívne a nenulové číslo.";
                         return;
                     }
-                    if (!int.TryParse(MaxSizeTextBox.Text, out int maxVal) || maxVal < 0)
+                    if (!int.TryParse(MaxSizeTextBox.Text, out int maxVal) || maxVal < 1)
                     {
-                        StatusTextBlock.Text = "Max size must be a non-negative integer.";
+                        StatusTextBlock.Text = "Maximálna velkosť musí by pozitívne a nenulové číslo.";
                         return;
                     }
                     if (minVal > maxVal)
                     {
-                        StatusTextBlock.Text = "Min size cannot be greater than Max size.";
+                        StatusTextBlock.Text = "Minimálna veľkosť nemôže byť väčšia ako maximálna.";
                         return;
                     }
                     min = minVal;
@@ -209,27 +209,27 @@ namespace Interface
 
                         if (allowChange)
                         {
-                            if (!int.TryParse(MaxChangesTextBox.Text, out maxChanges) || maxChanges < 0)
+                            if (!int.TryParse(MaxChangesTextBox.Text, out maxChanges) || maxChanges < 1)
                             {
-                                StatusTextBlock.Text = "Max changes must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet zmien (change) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
 
                         if (allowRemove)
                         {
-                            if (!int.TryParse(MaxRemovalsTextBox.Text, out maxRemovals) || maxRemovals < 0)
+                            if (!int.TryParse(MaxRemovalsTextBox.Text, out maxRemovals) || maxRemovals < 1)
                             {
-                                StatusTextBlock.Text = "Max removals must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet odstránenia (remove) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
 
                         if (allowAdd)
                         {
-                            if (!int.TryParse(MaxAdditionsTextBox.Text, out maxAdditions) || maxAdditions < 0)
+                            if (!int.TryParse(MaxAdditionsTextBox.Text, out maxAdditions) || maxAdditions < 1)
                             {
-                                StatusTextBlock.Text = "Max additions must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet pridania (add) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
@@ -251,7 +251,7 @@ namespace Interface
 
                         PeopleMaker.Main();
 
-                        StatusTextBlock.Text = $"Exported class Person to '{folder}'";
+                        StatusTextBlock.Text = $"Triedy úšpešne uložené do '{folder}'";
                         break;
 
                     // List
@@ -268,27 +268,27 @@ namespace Interface
 
                         if (listAllowRemove)
                         {
-                            if (!int.TryParse(MaxRemovalsTextBox.Text, out listMaxRemovals) || listMaxRemovals < 0)
+                            if (!int.TryParse(MaxRemovalsTextBox.Text, out listMaxRemovals) || listMaxRemovals < 1)
                             {
-                                StatusTextBlock.Text = "Max removals must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet odstránenia (remove) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
 
                         if (listAllowAdd)
                         {
-                            if (!int.TryParse(MaxAdditionsTextBox.Text, out listMaxAdditions) || listMaxAdditions < 0)
+                            if (!int.TryParse(MaxAdditionsTextBox.Text, out listMaxAdditions) || listMaxAdditions < 1)
                             {
-                                StatusTextBlock.Text = "Max additions must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet pridania (add) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
 
                         if (listAllowShift)
                         {
-                            if (!int.TryParse(MaxShiftsTextBox.Text, out listMaxShifts) || listMaxShifts < 0)
+                            if (!int.TryParse(MaxShiftsTextBox.Text, out listMaxShifts) || listMaxShifts < 1)
                             {
-                                StatusTextBlock.Text = "Max shifts must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet presunutia (shift) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
@@ -311,8 +311,8 @@ namespace Interface
                         );
 
                         ListsMaker.Main();
-                        
-                        StatusTextBlock.Text = $"Exported List<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
+
+                        StatusTextBlock.Text = $"Zoznam úšpešne uložený do '{folder}'";
                         break;
 
                     // Set
@@ -328,18 +328,18 @@ namespace Interface
 
                         if (setAllowRemove)
                         {
-                            if (!int.TryParse(MaxRemovalsTextBox.Text, out setMaxRemovals) || setMaxRemovals < 0)
+                            if (!int.TryParse(MaxRemovalsTextBox.Text, out setMaxRemovals) || setMaxRemovals < 1)
                             {
-                                StatusTextBlock.Text = "Max removals must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet odstránenia (remove) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
 
                         if (setAllowAdd)
                         {
-                            if (!int.TryParse(MaxAdditionsTextBox.Text, out setMaxAdditions) || setMaxAdditions < 0)
+                            if (!int.TryParse(MaxAdditionsTextBox.Text, out setMaxAdditions) || setMaxAdditions < 1)
                             {
-                                StatusTextBlock.Text = "Max additions must be a non-negative integer.";
+                                StatusTextBlock.Text = "Maximálny počet pridania (add) nesmie byť negatívne alebo nulové číslo.";
                                 return;
                             }
                         }
@@ -360,8 +360,7 @@ namespace Interface
                         );
 
                         SetsMaker.Main();
-
-                        StatusTextBlock.Text = $"Exported HashSet<string> to '{folder}' (size range {min.Value}-{max.Value}, iterations={iteration})";
+                        StatusTextBlock.Text = $"Množina úšpešne uložená do '{folder}'";
                         break;
 
                     default:

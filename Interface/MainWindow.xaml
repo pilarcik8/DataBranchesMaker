@@ -90,7 +90,7 @@
         <!-- Iteration + Export and WriteSteps checkbox under iterations -->
         <StackPanel Orientation="Vertical" Grid.Row="5" VerticalAlignment="Center" Margin="0,0,0,8">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Iteration:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Text="Iterations:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                 <TextBox x:Name="IterationTextBox" Width="60" Text="1"/>
                 <Button x:Name="ExportButton" Content="Export" Width="80" Margin="12,0,0,0" Click="ExportButton_Click"/>
             </StackPanel>

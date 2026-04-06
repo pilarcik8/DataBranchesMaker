@@ -114,6 +114,10 @@ namespace ListMaker
             long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift,
                                                                 maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxShift: MaxAllowedShifts);
             TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
+            if (numbOfMaxMods <= 0)
+            {
+                throw new Exception("Maximálny počet modifikácií musí být väčší ako 0");
+            }
 
             for (int iteration = 0; iteration < EndIteration; iteration++)
             {

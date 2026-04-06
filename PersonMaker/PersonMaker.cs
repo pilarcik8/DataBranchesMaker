@@ -79,6 +79,11 @@ namespace PersonMaker
             long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange,
                                                                 maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxChange: MaxAllowedChanges);
             TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
+            
+            if (numbOfMaxMods <= 0)
+            {
+                throw new Exception("Maximálny počet modifikácií musí být väčší ako 0");
+            }
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
