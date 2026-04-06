@@ -232,20 +232,20 @@ namespace SetMaker
         {
             if (action == SetAction.REMOVE)
             {
-                ChangeLogText += $"Removing item: '{item}'\n";
+                ChangeLogText += $"Removing element: '{item}'\n";
                 baseSet.Remove(item);
                 branchSet.Remove(item);
             }
             else if (action == SetAction.ADD)
             {
-                ChangeLogText += $"Adding item: '{item}'\n";
+                ChangeLogText += $"Adding element: '{item}'\n";
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseSet.ToList(), LeftSet.ToList(), RightSet.ToList(), ResultSet.ToList());
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
             }
             else if (action == SetAction.KEEP)
             {
-                ChangeLogText += $"Keeping item: '{item}'\n";
+                ChangeLogText += $"Keeping element: '{item}'\n";
             }
         }
 

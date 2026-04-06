@@ -15,6 +15,12 @@ namespace PersonMaker
         REMOVE,
         ADD
     }
+    struct RowAction
+    {
+        public AtributeAction Right;
+        public AtributeAction Left;
+        public AtributeAction Base => Right == AtributeAction.KEEP ? Left : Right;
+    }
 
     public static class PersonMaker
     {
@@ -25,7 +31,7 @@ namespace PersonMaker
         public static int Iterations { get; set; } = 5;
         public static bool AllowChange { get; set; } = true;
         public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdd { get; set; } = true;
+        public static bool AllowAdditions { get; set; } = true;
         public static int MaxAllowedChanges { get; set; } = int.MaxValue;
         public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
         public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
@@ -37,7 +43,6 @@ namespace PersonMaker
         public static Person? RightPerson { get; set; }
         public static Person? ResultPerson { get; set; }
         public static bool WriteSteps { get; set; } = false;
-        public static bool TestingOneActionTwice = false;
         public static bool TestingOneActionOnce = false;
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory, bool writeSteps)
         {
@@ -53,7 +58,7 @@ namespace PersonMaker
             Iterations = numberIterations;
             AllowChange = changesAllowed;
             AllowRemove = removingAllowed;
-            AllowAdd = addingAllowed;
+            AllowAdditions = addingAllowed;
             OutputDirectory = outputDirectory;
             WriteSteps = writeSteps;
         }
@@ -70,11 +75,10 @@ namespace PersonMaker
             var faker = new Faker("en"); 
             int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
 
-            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange);
-            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange,
+            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange);
+            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange,
                                                                 maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxChange: MaxAllowedChanges);
             TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
-            TestingOneActionTwice = SharedMethods.LearnIfCurrentlyTestingOneActionTwice(baseAtributeCount, nunOfAllowedActions, numbOfMaxMods);
 
             for (int iteration = 0; iteration < Iterations; iteration++)
             {
@@ -83,7 +87,9 @@ namespace PersonMaker
                 // Pre vasciu diferenciaciu r a l branchov pocas generovania
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
 
-                var (leftActions, rightActions) = GetActionsForItem(leftKeepProbability);
+                var actions = GenerateRowActions(leftKeepProbability);
+                int leftActionsCount = actions.Count(a => a.Left != AtributeAction.KEEP);
+                int rightActionsCount = actions.Count(a => a.Right != AtributeAction.KEEP);
 
                 for (int i = 0; i < baseAtributeCount; i++)
                 {
@@ -97,8 +103,8 @@ namespace PersonMaker
                     string baseStepName = "base_step" + i;
 
                     // Generovanie akcii pre pravy a lavy branch
-                    AtributeAction actionR = rightActions[i];
-                    AtributeAction actionL = leftActions[i];
+                    AtributeAction actionR = actions[i].Right;
+                    AtributeAction actionL = actions[i].Left;
 
                     if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
                     {
@@ -128,14 +134,11 @@ namespace PersonMaker
                     }
                 }
 
-                leftActions.RemoveAll(x => x == AtributeAction.KEEP);
-                rightActions.RemoveAll(x => x == AtributeAction.KEEP);
-
                 string head = SharedMethods.GetHeadForChangeLog(
                                                 leftKeepProbability: leftKeepProbability,
                                                 iteration: iteration,
-                                                leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,
-                                                allowAdd: AllowAdd, allowRemove: AllowRemove, allowChange: AllowChange,
+                                                leftModsCount: leftActionsCount, rightModsCount: rightActionsCount,
+                                                allowAdd: AllowAdditions, allowRemove: AllowRemove, allowChange: AllowChange,
                                                 madeAdditions: PreperedAdditions, madeRemovals: PreperedRemovals, madeChanges: PreperedChanges,
                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedChanges: MaxAllowedChanges);
                 ChangeLogText = head + ChangeLogText;
@@ -167,109 +170,65 @@ namespace PersonMaker
             BasePerson = ResultPerson.Clone();
         }
 
-        private static (List<AtributeAction> leftActions, List<AtributeAction> rightActions) GetActionsForItem(double leftKeepProbability)
+        private static List<RowAction> GenerateRowActions(double leftKeepProbability)
         {
-            List<AtributeAction> leftActions = new List<AtributeAction>();
-            List<AtributeAction> rightActions = new List<AtributeAction>();
+            var actions = new List<RowAction>();
+            int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
 
             int leftModificationCount = 0;
             int rightModificationCount = 0;
 
-            for (int i = 0; i < typeof(Person).GetProperties().Length; i++)
+            var sumOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange, maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxChange: MaxAllowedChanges);
+            var sealingOfMods = Math.Min(baseAtributeCount, sumOfMaxMods);
+            var bottomOfMods = TestingOneActionOnce ? 1 : 2;
+            var numberOfMods = Random.Shared.Next(bottomOfMods, (int)(sealingOfMods + 1));
+
+            for (int i = 0; i < numberOfMods; i++)
             {
-                leftActions.Add(AtributeAction.KEEP);
-                rightActions.Add(AtributeAction.KEEP);
-            }
-
-            // helper
-            AtributeAction GetNonKeepAction()
-            {
-                int sum = 0;
-                if (AllowAdd) sum++;
-                if (AllowChange) sum++;
-                if (AllowRemove) sum++;
-
-                if (sum != 1) throw new InvalidOperationException("Nespravne pouzity GetNonKeepAction");
-                if (AllowAdd) return AtributeAction.ADD;
-                if (AllowChange) return AtributeAction.CHANGE;
-                return AtributeAction.REMOVE;
-            }
-
-            // jedna modifikacia
-            if (TestingOneActionOnce)
-            {
-                int index = Random.Shared.Next(typeof(Person).GetProperties().Length);
-                var action = GetNonKeepAction();
-
-                if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
+                if (SharedMethods.ShouldNextModificationBeOnLeft(leftModificationCount, rightModificationCount, leftKeepProbability))
                 {
-                    leftActions[index] = action;
+                    actions.Add(new RowAction { Left = GetNonKeepAction(), Right = AtributeAction.KEEP });
                     leftModificationCount++;
                 }
                 else
                 {
-                    rightActions[index] = action;
+                    actions.Add(new RowAction { Left = AtributeAction.KEEP, Right = GetNonKeepAction() });
                     rightModificationCount++;
                 }
             }
 
-            // dve modifikacie
-            else if (TestingOneActionTwice)
+            while (actions.Count < baseAtributeCount)
             {
-                var action = GetNonKeepAction();
-                var indexes = new HashSet<int>();
-
-                for (int i = 0; i < 2; i++)
-                {
-                    int index = Random.Shared.Next(typeof(Person).GetProperties().Length);
-                    while (indexes.Contains(index))
-                    {
-                        index = Random.Shared.Next(typeof(Person).GetProperties().Length);
-                    }
-
-                    if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
-                    {
-                        indexes.Add(index);
-                        leftActions[index] = action;
-                        leftModificationCount++;
-                    }
-                    else
-                    {
-                        indexes.Add(index);
-                        rightActions[index] = action;
-                        rightModificationCount++;
-                    }
-                }
+                var randIndex = Random.Shared.Next(actions.Count + 1);
+                actions.Insert(randIndex, new RowAction { Left = AtributeAction.KEEP, Right = AtributeAction.KEEP });
             }
-            else
-            {
-                // normalny beh
-                for (int j = 0; j < typeof(Person).GetProperties().Length; j++)
-                {
-                    var action = GetAtributeAction();
-                    if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
-                    {
-                        leftActions[j] = action;
-                        if (action != AtributeAction.KEEP) leftModificationCount++;
-                    }
-                    else
-                    {
-                        rightActions[j] = action;
-                        if (action != AtributeAction.KEEP) rightModificationCount++;
-                    }
-                }
-            }
-            // ujisti sa ze sme vytvorili 3way vetvy - ak nie opakuj iteraciu = prepis base/right/left
-            if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
-            {
-                PreperedAdditions = 0;
-                PreperedRemovals = 0;
-                PreperedChanges = 0;
-                return GetActionsForItem(leftKeepProbability);
-
-            }
-            return (leftActions, rightActions);
+            return actions;
         }
+        private static AtributeAction GetNonKeepAction()
+        {
+            var allowed = new List<AtributeAction>();
+            if (AllowRemove && MaxAllowedRemovals > PreperedRemovals) allowed.Add(AtributeAction.REMOVE);
+            if (AllowAdditions && MaxAllowedAdditions > PreperedAdditions) allowed.Add(AtributeAction.ADD);
+            if (AllowChange && MaxAllowedChanges > PreperedChanges) allowed.Add(AtributeAction.CHANGE);
+
+            if (allowed.Count == 0) throw new InvalidOperationException("Všetky akcie boli už spotrebované");
+
+            var action = allowed[Random.Shared.Next(allowed.Count)];
+            switch (action)
+            {
+                case AtributeAction.ADD:
+                    PreperedAdditions++;
+                    break;
+                case AtributeAction.REMOVE:
+                    PreperedRemovals++;
+                    break;
+                case AtributeAction.CHANGE:
+                    PreperedChanges++;
+                    break;
+            }
+            return action;
+        }
+
         private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
         {
             if (action == AtributeAction.KEEP)
@@ -304,35 +263,6 @@ namespace PersonMaker
 
                 ChangeLogText += $"Added new attribute named '{nameOfNewAttribute}' with value '{valueOfNewAttribute}' was added before attribute '{attributeBeforeAdd}'\n";
             }
-        }
-
-        private static AtributeAction GetAtributeAction()
-        {
-            int remaningAdd = AllowAdd ? MaxAllowedAdditions - PreperedAdditions : 0;
-            int remaningChange = AllowChange ? MaxAllowedChanges - PreperedChanges : 0;
-            int remaningRemove = AllowRemove ? MaxAllowedRemovals - PreperedRemovals : 0;
-
-            var availableMods = new List<AtributeAction>() { AtributeAction.KEEP };
-            if (remaningChange > 0) availableMods.Add(AtributeAction.CHANGE);
-            if (remaningRemove > 0) availableMods.Add(AtributeAction.REMOVE);
-            if (remaningAdd > 0) availableMods.Add(AtributeAction.ADD);
-
-            int index = Random.Shared.Next(availableMods.Count);
-            var action = availableMods[index];
-            switch (action)
-            {
-                case AtributeAction.ADD:
-                    PreperedAdditions++;
-                    break;
-                case AtributeAction.REMOVE:
-                    PreperedRemovals++;
-                    break;
-                case AtributeAction.CHANGE:
-                    PreperedChanges++;
-                    break;
-            }
-
-            return action;
         }
 
         private static Person CreatePersonWithPlaceholders()
