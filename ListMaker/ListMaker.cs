@@ -200,7 +200,7 @@ namespace ListMaker
                 // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
-                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice,
+                string head = SharedMethods.GetHeadForChangeLog(
                                                                 leftKeepProbability: leftKeepProbability,
                                                                 iteration: iteration,
                                                                 leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,

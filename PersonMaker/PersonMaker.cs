@@ -131,7 +131,7 @@ namespace PersonMaker
                 leftActions.RemoveAll(x => x == AtributeAction.KEEP);
                 rightActions.RemoveAll(x => x == AtributeAction.KEEP);
 
-                string head = SharedMethods.GetHeadForChangeLog(testingOneActionTwice: TestingOneActionTwice,
+                string head = SharedMethods.GetHeadForChangeLog(
                                                 leftKeepProbability: leftKeepProbability,
                                                 iteration: iteration,
                                                 leftModsCount: leftActions.Count, rightModsCount: rightActions.Count,

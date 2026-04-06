@@ -30,6 +30,14 @@ namespace Shared
             return (Random.Shared.NextDouble() >= leftKeepProbability);
         }
 
+        public static bool ShouldNextModificationBeOnLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
+        {
+            if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
+            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
+
+            return (Random.Shared.NextDouble() >= leftKeepProbability);
+        }
+
         public static string GetNewUniqueWord(Faker faker, List<string> baseList, List<string> leftList, List<string> rightList, List<string> resultList)
         {
             var word = faker.Random.Word();
@@ -46,7 +54,7 @@ namespace Shared
             return word;
         }
 
-        public static string GetHeadForChangeLog(bool testingOneActionTwice, double leftKeepProbability, int iteration, 
+        public static string GetHeadForChangeLog(double leftKeepProbability, int iteration, 
             int leftModsCount, int rightModsCount, 
             bool allowAdd = false, bool allowRemove = false, bool allowChange = false, bool allowShift = false,
             int maxAllowedRemovals = 0, int maxAllowedChanges = 0, int maxAllowedAdditions = 0, int maxAllowedShifts = 0,
@@ -82,15 +90,7 @@ namespace Shared
             if (allowChange) head+= $"Change: {madeChanges} "; 
 
             head += "\n\n";
-
-            if (testingOneActionTwice)
-            {
-                head += $"Iteration {iteration}: One modification for Left and Base, another for Right and Base\n";
-            }
-            else
-            {
-                head += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";
-            }
+            head += $"Iteration {iteration}: Left KEEP probability: {leftKeepProbability:P0}, Right KEEP probability: {1 - leftKeepProbability:P0}\n";            
             head += $"Number of modifications: Left: {leftModsCount}, Right: {rightModsCount}\n\n";
             return head;
         }
