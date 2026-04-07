@@ -353,10 +353,6 @@ namespace ListMaker
 
         private static ListAction ChooseAction(List<string> branchList, int remainingPositions, string actualElement)
         {
-            int remAdd = GetRemainingNumberOfUsesOfAction(ListAction.ADDITION);
-            int remShift = GetRemainingNumberOfUsesOfAction(ListAction.SHIFT);
-            int remRem = GetRemainingNumberOfUsesOfAction(ListAction.REMOVAL);
-            
             if (ShouldNextActionBeKeep())
             {
                 LastElementWasRemovedFromPosition = false;
