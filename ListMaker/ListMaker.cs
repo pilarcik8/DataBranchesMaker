@@ -3,10 +3,12 @@ using Bogus.DataSets;
 using Microsoft.VisualBasic;
 using Shared;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
+using static System.Collections.Specialized.BitVector32;
 
 namespace ListMaker
 {
@@ -17,58 +19,47 @@ namespace ListMaker
             KEEP,
             REMOVAL,
             ADDITION,
-            SHIFT
+            SHIFT_SOURCE,
+            SHIFT_TARGET
         }
 
-        // Kedže negenerujeme sekvenciu akcií, ak kroky tvorime počas prococesu modifikácií, ak budeme musieť opakovat iteraciu, kroky sa nám nezamiesajú so starímy
-        private class Step
+        private struct RowAction
         {
-            public string name { get; }
-            public List<string> listOfState { get; }
-            public string pathToExport { get; }
-
-            public Step(string name, List<string> listOfState, string pathToExport)
-            {
-                this.name = name;
-                this.listOfState = new List<string>(listOfState);
-                this.pathToExport = pathToExport;
-            }
+            public ListAction Right;
+            public ListAction Left;
+            public ListAction Base => Right == ListAction.KEEP ? Left : Right;
+            public string shiftTarget;
         }
 
         // Počet vykonaných akcií v iterácii, resetuje sa na začiatku každej iterácie
-        private static int MadeRemovals = 0;
-        private static int MadeAdditions = 0;
-        private static int MadeShifts = 0;
+        private static int PreparedRemovals = 0;
+        private static int PreparedAdditions = 0;
+        private static int PreparedShifts = 0;
 
-        public static int EndIteration { get; set; } = 5;
+        private static int EndIteration { get; set; } = 5;
         // Povolenie jednotlivých akcií
-        public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdd { get; set; } = true;
-        public static bool AllowShift { get; set; } = true;
+        private static bool AllowRemove { get; set; } = true;
+        private static bool AllowAdditions { get; set; } = true;
+        private static bool AllowShift { get; set; } = true;
         // Maximálny počet povolených akcií (globálne pre všetky iterácie)
-        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
-        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
-        public static int MaxAllowedShifts { get; set; } = int.MaxValue;
+        private static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        private static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        private static int MaxAllowedShifts { get; set; } = int.MaxValue;
 
         // Veľkosť očakávaného výsledku (originálneho xml)
-        public static int MaxResultSize { get; set; } = 10;
-        public static int MinResultSize { get; set; } = 10;
-        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
-        public static string ChangeLogText = "";
-        public static bool WriteSteps { get; set; } = false;
+        private static int MaxResultSize { get; set; } = 10;
+        private static int MinResultSize { get; set; } = 10;
+        private static int RightModificationCount { get; set; } = 0;
+        private static int LeftModificationCount { get; set; } = 0;
+        private static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
+        private static string ChangeLogText = "";
+        private static bool WriteSteps { get; set; } = false;
 
-        // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP
-        // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie = xmldiff nahodne vyberie ale sharpdifflib oznaci ako konflikt
-        public static bool LastElementWasRemovedFromPosition = false;
-
-        public static HashSet<string> UsedShiftItems = new HashSet<string>();
-
-        public static List<string> ResultList = new List<string>();
-        public static List<string> RightList = new List<string>();
-        public static List<string> LeftList = new List<string>();
-        public static List<string> BaseList = new List<string>();
-        public static bool TestingOneActionTwice = false;
-        public static bool TestingOneActionOnce = false;
+        private static List<string> ResultList = new List<string>();
+        private static List<string> RightList = new List<string>();
+        private static List<string> LeftList = new List<string>();
+        private static List<string> BaseList = new List<string>();
+        private static bool TestingOneActionOnce = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool shiftingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool writeSteps)
         {
@@ -95,7 +86,7 @@ namespace ListMaker
             MaxResultSize = maxResultSize;
             EndIteration = numberIterations;
             AllowRemove = removingAllowed;
-            AllowAdd = addingAllowed;
+            AllowAdditions = addingAllowed;
             AllowShift = shiftingAllowed;
             OutputDirectory = outputDirectory;
             WriteSteps = writeSteps;
@@ -111,8 +102,8 @@ namespace ListMaker
         public static void Main()
         {
             var faker = new Faker();
-            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift);
-            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdd, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift,
+            int nunOfAllowedActions = SharedMethods.GetNumberOfAllowedActions(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift);
+            long numbOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift,
                                                                 maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxShift: MaxAllowedShifts);
             TestingOneActionOnce = SharedMethods.LearnIfCurrentlyTestingOneActionOnce(nunOfAllowedActions, numbOfMaxMods);
             if (numbOfMaxMods <= 0)
@@ -126,14 +117,33 @@ namespace ListMaker
                 double leftKeepProbability = Random.Shared.NextDouble() * 0.6 + 0.2; // [0.2, 0.8]
                 int elementCount = ResultList.Count;
 
-                TestingOneActionTwice = SharedMethods.LearnIfCurrentlyTestingOneActionTwice(elementCount, nunOfAllowedActions, numbOfMaxMods);
+                var rowActions = GenerateRowActions(leftKeepProbability);
+                var targerItems = new List<string>();
+                var shiftSourceIndices = new List<int>();
 
-                int leftModificationCount = 0;
-                int rightModificationCount = 0;
+                if (AllowShift) { 
+                    for (int i = 0; i < rowActions.Count; i++)
+                    {
+                        if (rowActions[i].Base == ListAction.SHIFT_TARGET)
+                        {
+                            targerItems.Add(ResultList[i]);
+                        }
+                        if (rowActions[i].Base == ListAction.SHIFT_SOURCE)
+                        {
+                            shiftSourceIndices.Add(i);
+                        }
+                    }
 
-                Stack<Step> steps = new Stack<Step>();
+                    targerItems = Shuffle(targerItems);
 
-                // Akcie sa vyberu a rovno vykonaju
+                    for (int i = 0; i < shiftSourceIndices.Count; i++)
+                    {
+                        int srcIdx = shiftSourceIndices[i];
+                        var ra = rowActions[srcIdx];
+                        ra.shiftTarget = targerItems[i];
+                        rowActions[srcIdx] = ra;
+                    }
+                }
                 for (int i = 0; i < elementCount; i++)
                 {
                     var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
@@ -146,102 +156,65 @@ namespace ListMaker
                     string baseStepName = "base_step" + i;
 
                     var item = ResultList[i];
-                    int remainingPositions = elementCount - i;
 
-                    (ListAction, ListAction) leftAndRightAction = ChooseLeftRightAction(leftModificationCount, rightModificationCount, leftKeepProbability, remainingPositions, item);
-                    ListAction leftAct = leftAndRightAction.Item1;
-                    ListAction rightAct = leftAndRightAction.Item2;
-
-                    if (leftAct == ListAction.KEEP && rightAct == ListAction.KEEP)
+                    if (rowActions[i].Base == ListAction.KEEP)
                     {
                         ChangeLogText += "L, R, B:\n";
-                        // či dám left/right nezalezi
-                        ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
+                        ExecuteAction(RightList, BaseList, item, faker, rowActions[i]);
                     }
-                    else if (leftAct == ListAction.KEEP)
+                    else if (rowActions[i].Left == ListAction.KEEP)
                     {
                         ChangeLogText += "R, B:\n";
-                        ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
-                        rightModificationCount++;
+                        ExecuteAction(RightList, BaseList, item, faker, rowActions[i]);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(rightStepName, RightList, pathToStepsR));
-                            steps.Push(new Step(baseStepName, BaseList, pathToStepsB));
+                            XMLOutput.Export(RightList!, rightStepName, null, pathToStepsR);
+                            XMLOutput.Export(BaseList!, baseStepName, null, pathToStepsB);
                         }
                     }
-                    else if (rightAct == ListAction.KEEP)
+                    else if (rowActions[i].Right == ListAction.KEEP)
                     {
                         ChangeLogText += "L, B:\n";
-                        ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
-                        leftModificationCount++;
+                        ExecuteAction(LeftList, BaseList, item, faker, rowActions[i]);
                         if (WriteSteps)
                         {
-                            steps.Push(new Step(leftStepName, LeftList, pathToStepsL));
-                            steps.Push(new Step(baseStepName, BaseList, pathToStepsB));
+                            XMLOutput.Export(LeftList!, leftStepName, null, pathToStepsL);
+                            XMLOutput.Export(BaseList!, baseStepName, null, pathToStepsB);
                         }
                     }
-                }
-
-                // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
-                {
-                    steps.Clear();
-                    iteration--;
-                    continue;
-                }
-
-                // Export krokov - musi byt po ujisteni 3way merge, inak kroky stare + nove sa zmiesaju
-                while (steps.Count > 0)
-                {
-                    var step = steps.Pop();
-                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
                 }
 
                 XMLOutput.Export(LeftList, "left", iteration, OutputDirectory);
                 XMLOutput.Export(RightList, "right", iteration, OutputDirectory);
                 XMLOutput.Export(BaseList, "base", iteration, OutputDirectory);
                 XMLOutput.Export(ResultList, "expectedResult", iteration, OutputDirectory);
-                
+
                 // Export changelogu do txt
                 string iterationDir = Path.Combine(OutputDirectory, iteration.ToString());
                 Directory.CreateDirectory(iterationDir);
                 string head = SharedMethods.GetHeadForChangeLog(
                                                                 leftKeepProbability: leftKeepProbability,
                                                                 iteration: iteration,
-                                                                leftModsCount: leftModificationCount, rightModsCount: rightModificationCount,
-                                                                allowAdd: AllowAdd, allowRemove: AllowRemove, allowShift: AllowShift,
-                                                                madeAdditions: MadeAdditions, madeRemovals: MadeRemovals, madeShifts: MadeShifts,
+                                                                leftModsCount: LeftModificationCount, rightModsCount: RightModificationCount,
+                                                                allowAdd: AllowAdditions, allowRemove: AllowRemove, allowShift: AllowShift,
+                                                                madeAdditions: PreparedAdditions, madeRemovals: PreparedRemovals, madeShifts: PreparedShifts,
                                                                 maxAllowedAdditions: MaxAllowedAdditions, maxAllowedRemovals: MaxAllowedRemovals, maxAllowedShifts: MaxAllowedShifts);
                 ChangeLogText = head + ChangeLogText;
                 File.WriteAllText(Path.Combine(iterationDir, $"changeLog{iteration}.txt"), ChangeLogText, Encoding.UTF8);
             }
         }
 
-        private static (ListAction, ListAction) ChooseLeftRightAction(int leftModificationCount, int rightModificationCount, double leftKeepProbability, int remainingPositions, string item) {
-            ListAction leftAct, rightAct;
-
-            if (SharedMethods.ShouldNextModificationBeOnLeft(TestingOneActionTwice, leftModificationCount, rightModificationCount, leftKeepProbability))
-            {
-                leftAct = ChooseAction(LeftList, remainingPositions, item);
-                rightAct = ListAction.KEEP;
-            }
-            else
-            {
-                leftAct = ListAction.KEEP;
-                rightAct = ChooseAction(RightList, remainingPositions, item);
-            }
-            return (leftAct, rightAct);
-        }
-
         private static void Init(Faker faker)
         {
             // Inicializácia
-            MadeAdditions = 0;
-            MadeRemovals = 0;
-            MadeShifts = 0;
+            PreparedAdditions = 0;
+            PreparedRemovals = 0;
+            PreparedShifts = 0;
+
+            RightModificationCount = 0;
+            LeftModificationCount = 0;
 
             ChangeLogText = string.Empty;
-            UsedShiftItems.Clear();
 
             int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
@@ -267,8 +240,150 @@ namespace ListMaker
             return list;
         }
 
-        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, ListAction action, Faker faker, int iteration)
+        private static List<RowAction> GenerateRowActions(double leftKeepProbability)
         {
+            var actions = new List<RowAction>();
+
+            var sumOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedShift: AllowShift,
+                                                              maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxShift: MaxAllowedShifts);
+            var sealingOfMods = Math.Min(ResultList.Count, sumOfMaxMods);
+            var bottomOfMods = TestingOneActionOnce ? 1 : 2;
+            var numberOfMods = Random.Shared.Next(bottomOfMods, (int)(sealingOfMods + 1));
+
+            int actionsGenerated = 0;
+
+            while (LeftModificationCount + RightModificationCount < numberOfMods && actionsGenerated < ResultList.Count)
+            {
+                // compute remaining mods (not remaining actions)
+                int remainingMods = numberOfMods - (LeftModificationCount + RightModificationCount);
+                List<ListAction> actionSequence;
+                try
+                {
+                    actionSequence = GetNextActions(ResultList.Count - actionsGenerated, remainingMods);
+                }
+                catch (InvalidOperationException)
+                {
+                    break;
+                }
+                actionsGenerated += actionSequence.Count;
+
+                // rozhodneme stranu
+                var isleft = SharedMethods.ShouldNextModificationBeOnLeft(LeftModificationCount, RightModificationCount, leftKeepProbability);
+                foreach (var act in actionSequence)
+                {
+                    if (isleft)
+                    {
+                        actions.Add(new RowAction { Left = act, Right = ListAction.KEEP });
+                        if (act != ListAction.KEEP && act != ListAction.SHIFT_TARGET) LeftModificationCount++;
+                    }
+                    else
+                    {
+                        actions.Add(new RowAction { Left = ListAction.KEEP, Right = act });
+                        if (act != ListAction.KEEP && act != ListAction.SHIFT_TARGET) RightModificationCount++;
+                    }
+                }
+            }
+
+            if (!TestingOneActionOnce)
+            {
+                // môže nastať pri malom zozname alebo lebo SHIFT potrebuje 3 - 4 prvky na 1 operáciu
+                if (LeftModificationCount + RightModificationCount < 2)
+                {
+                    throw new Exception("Zadané nastavanie tvoria nechcené výsledky. Upravte veľkosť zoznamu alebo vypnite SHIFT");
+                }
+
+                if (LeftModificationCount == 0 || RightModificationCount == 0)
+                {
+                    throw new Exception("Vygenerovaný výsledok neobsahuje modifikácie na jednej strane. Chyba generátora.");
+                }
+            }
+
+            // doplníme KEEP akcie
+            while (actions.Count < ResultList.Count)
+            {
+                var randIndex = Random.Shared.Next(actions.Count + 1);
+                actions.Insert(randIndex, new RowAction { Left = ListAction.KEEP, Right = ListAction.KEEP });
+            }
+            return actions;
+        }
+
+        private static List<ListAction> GetNextActions(int remainingElements, int reamingMods)
+        {
+            var allowed = new List<ListAction>();
+
+            if (AllowAdditions && MaxAllowedAdditions > PreparedAdditions) allowed.Add(ListAction.ADDITION);
+            if (AllowRemove && MaxAllowedRemovals > PreparedRemovals) allowed.Add(ListAction.REMOVAL);
+            if (AllowShift && MaxAllowedShifts > PreparedShifts && remainingElements >= 3) allowed.Add(ListAction.SHIFT_SOURCE);
+
+            if (allowed.Count == 0) throw new InvalidOperationException("Všetky akcie boli už spotrebované");
+
+            var actions = new List<ListAction> { };
+            var action = allowed[Random.Shared.Next(allowed.Count)];
+            switch (action)
+            {
+                case ListAction.ADDITION:
+                    actions.Add(ListAction.ADDITION);
+                    PreparedAdditions++;
+                    break;
+
+                case ListAction.REMOVAL:
+                    actions = GenerateSafeRemovalSequence(remainingElements, reamingMods);
+                    PreparedRemovals++;
+                    break;
+
+                case ListAction.SHIFT_SOURCE:
+                    actions = GenerateSafeShiftSequence(remainingElements, reamingMods);
+                    PreparedShifts++;
+                    break;
+            }
+            return actions;
+        }
+
+        private static List<ListAction> GenerateSafeRemovalSequence(int remainingElements, int reamingMods)
+        {
+            var sequence = new List<ListAction>() { ListAction.REMOVAL };
+            if (remainingElements > 1) sequence.Add(GetAlwaysSafeAction(reamingMods));
+            return sequence;
+        }
+
+        private static List<ListAction> GenerateSafeShiftSequence(int remainingElements, int reamingMods)
+        {
+            var list = new List<ListAction>() { ListAction.SHIFT_SOURCE };
+            int rndIndex = Random.Shared.Next(2);
+            list.Insert(rndIndex, ListAction.SHIFT_TARGET);
+            list.Insert(1, GetAlwaysSafeAction(reamingMods)); //medzi
+            reamingMods--;
+            if (remainingElements > 3 && list.Last() == ListAction.SHIFT_SOURCE)
+            {
+                list.Add(GetAlwaysSafeAction(reamingMods)); //za
+            }
+            return list;
+        }
+
+        private static ListAction GetAlwaysSafeAction(int reamingMods)
+        {
+            var allowed = new List<ListAction>() { ListAction.KEEP };
+            if (AllowAdditions && MaxAllowedAdditions > PreparedAdditions && reamingMods > 1) allowed.Add(ListAction.ADDITION);
+            int rndIndex = Random.Shared.Next(allowed.Count);
+            var action = allowed[rndIndex];
+            if (action == ListAction.ADDITION) PreparedAdditions++;
+            return action;
+        }
+
+        private static List<string> Shuffle(List<string> list)
+        {
+            for (int i = list.Count - 1; i > 0; i--)
+            {
+                int j = Random.Shared.Next(i + 1);
+                (list[i], list[j]) = (list[j], list[i]);
+            }
+            return list;
+        }
+
+        private static void ExecuteAction(List<string> branchList, List<string> baseList, string item, Faker faker, RowAction actions)
+        {
+            var action = actions.Base;
+
             if (action == ListAction.KEEP)
             {
                 ChangeLogText += $"Keeping item: '{item}'\n";
@@ -278,12 +393,10 @@ namespace ListMaker
                 int baseIndex = baseList.IndexOf(item);
                 int branchIndex = branchList.IndexOf(item);
 
-                LastElementWasRemovedFromPosition = true;
                 ChangeLogText += $"Removing item: '{item}' at base index: '{baseIndex}' and branch index: '{branchIndex}'\n";
 
                 baseList.Remove(item);
                 branchList.Remove(item);
-                MadeRemovals++;
             }
             else if (action == ListAction.ADDITION)
             {
@@ -296,151 +409,42 @@ namespace ListMaker
                 branchList.Insert(branchIndex, newItem);
 
                 ChangeLogText += $"Adding item: '{newItem}' at base index: '{baseIndex}' and branch index: '{branchIndex} behind element '{item}'\n";
-
-                MadeAdditions++;
             }
-            else if (action == ListAction.SHIFT)
+            else if (action == ListAction.SHIFT_SOURCE)
             {
-                UsedShiftItems.Add(item);
-                int elementAtBaseIndex = baseList.IndexOf(item);
-
-                // výmena (swap) susediacich elementov spolu s dalším shiftom môže spôsobiť poradie elementov ktoré sa nedá nájť deteminicky
-                if (!TestingOneActionOnce)
+                var targetItem = actions.shiftTarget;
+                if (string.IsNullOrEmpty(targetItem))
                 {
-                    if (elementAtBaseIndex > 0)
-                    {
-                        UsedShiftItems.Add(baseList[elementAtBaseIndex - 1]);
-                    }
-                    if (elementAtBaseIndex < baseList.Count - 1)
-                    {
-                        UsedShiftItems.Add(baseList[elementAtBaseIndex + 1]);
-                    }
+                    ChangeLogText += $"Shift skipped: no shiftTarget assigned for item '{item}'\n";
+                    return;
                 }
-                // ziskam elementy ktore su v base aj branch a neboli pouzite pri inom shifte
-                List<string> baseListExceptDangerousTargets = new List<string>(baseList).Except(UsedShiftItems).ToList();
-                List<string> elementsThatArentInBranch = baseListExceptDangerousTargets.Except(branchList).ToList();
-                baseListExceptDangerousTargets = baseListExceptDangerousTargets.Except(elementsThatArentInBranch).ToList();
-
-                var count = baseListExceptDangerousTargets.Count();
-                if (count == 0) throw new InvalidOperationException("Žiadne elemnty neboli nájdené ako target");
-                var targetItem = baseListExceptDangerousTargets[Random.Shared.Next(count)];
 
                 int oldBaseIndex = baseList.IndexOf(item);
                 int oldBranchIndex = branchList.IndexOf(item);
 
-                UsedShiftItems.Add(targetItem);
+                int targetBaseIndex = baseList.IndexOf(targetItem);
+                int targetBranchIndex = branchList.IndexOf(targetItem);
+                if (targetBaseIndex < 0 || targetBranchIndex < 0)
+                {
+                    ChangeLogText += $"Shift skipped: target '{targetItem}' not present for source '{item}'\n";
+                    return;
+                }
 
                 baseList.Remove(item);
                 branchList.Remove(item);
 
-                //uložíme item za targetItem
-                int baseIndex = baseList.IndexOf(targetItem) + 1;
-                int branchIndex = branchList.IndexOf(targetItem) + 1;
+                baseList.Insert(targetBaseIndex, item);
+                branchList.Insert(targetBranchIndex, item);
 
-                baseList.Insert(baseIndex, item);
-                branchList.Insert(branchIndex, item);
+                int newBaseIndex = baseList.IndexOf(item);
+                int newBranchIndex = branchList.IndexOf(item);
 
-                var itemBeforeBase = baseList[baseIndex - 1];
-                var itemBeforeBranch = branchList[branchIndex - 1];
-
-                ChangeLogText += $"Shifting element: '{item}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex}' behind element Base:'{itemBeforeBase}'\n";
-                MadeShifts++;
-
-                // dalsí element sa nezmie modifikovať, lebo nastane rovnaký problém ako keď odstránime 2 prvky idúce za sebou vo vedlajsich vetviach (nedeterministicke poradie)
-                LastElementWasRemovedFromPosition = true;
+                ChangeLogText += $"Shifting element: '{item}' from Base:{oldBaseIndex},Branch:{oldBranchIndex} to Base:{newBaseIndex},Branch:{newBranchIndex} behind '{targetItem}'\n";
             }
-        }
-
-        private static ListAction ChooseAction(List<string> branchList, int remainingPositions, string actualElement)
-        {
-            if (ShouldNextActionBeKeep())
+            else if (action == ListAction.SHIFT_TARGET)
             {
-                LastElementWasRemovedFromPosition = false;
-                return ListAction.KEEP;
+                ChangeLogText += $"Keeping item: '{item}' - SHIFT TARGET\n";
             }
-
-            var allowed = new List<ListAction> { };
-
-            if (CanBeActionExecuted(ListAction.SHIFT, actualElement))
-            {
-                allowed.Add(ListAction.SHIFT);
-            }
-            if (CanBeActionExecuted(ListAction.REMOVAL, actualElement))
-            {
-                allowed.Add(ListAction.REMOVAL);
-            }
-            if (CanBeActionExecuted(ListAction.ADDITION, actualElement))
-            {
-                allowed.Add(ListAction.ADDITION);
-            }
-
-            LastElementWasRemovedFromPosition = false;
-            return allowed.Count > 0 ? allowed[Random.Shared.Next(allowed.Count)] : ListAction.KEEP;
-        }
-
-        private static int GetRemainingNumberOfUsesOfAction(ListAction action)
-        {
-            return action switch
-            {
-                ListAction.ADDITION => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
-                ListAction.REMOVAL => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
-                ListAction.SHIFT => AllowShift ? MaxAllowedShifts - MadeShifts : 0,
-                ListAction.KEEP => int.MaxValue, // KEEP nie je obmedzený
-                _ => throw new InvalidOperationException($"Unexpected action: {action}")
-            };
-        }
-
-        private static bool CanBeActionExecuted(ListAction action, string actualElement)
-        {
-            if (GetRemainingNumberOfUsesOfAction(action) == 0) return false;
-            // shift tu preniesol prvok ?
-            if (UsedShiftItems.Contains(actualElement)) return false; 
-
-            if (action == ListAction.REMOVAL)
-            {
-                if (LastElementWasRemovedFromPosition) return false;
-            }
-            else if (action == ListAction.SHIFT)
-            {
-                if (LastElementWasRemovedFromPosition) return false;
-
-                // aby sme nepocitali elementy ktore boli odstranene z base
-                var list = ResultList.Intersect(BaseList);
-                // je miesto na shift?
-                if (list.Count() - UsedShiftItems.Distinct().Count() <= 3) return false;
-            }
-            return true; // add, keep
-        }
-
-        private static bool ShouldNextActionBeKeep()
-        {
-            int remaningAdd = GetRemainingNumberOfUsesOfAction(ListAction.ADDITION);
-            int remaningShift = GetRemainingNumberOfUsesOfAction(ListAction.SHIFT);
-            int remaningRemove = GetRemainingNumberOfUsesOfAction(ListAction.REMOVAL);
-
-            int evenChance = Math.Max(1, ResultList.Count);
-
-            if (TestingOneActionOnce || TestingOneActionTwice)
-            {
-                return Random.Shared.Next(evenChance) != 0;          
-            }
-
-            // normalny
-            var allowed = new List<ListAction> { ListAction.KEEP };
-            if (remaningAdd > 0)
-            {
-                allowed.Add(ListAction.ADDITION);
-            }
-            if (remaningRemove > 0)
-            {
-                allowed.Add(ListAction.REMOVAL);
-            }
-            if (remaningShift > 0)
-            {
-                allowed.Add(ListAction.SHIFT);
-            }
-
-            return allowed[Random.Shared.Next(allowed.Count)] == ListAction.KEEP;
         }
     }
 }

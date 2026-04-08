@@ -10,26 +10,6 @@ namespace Shared
 {
     public class SharedMethods  
     {
-        public static bool IsValidOutput(bool testingOneActionOnce, int leftModificationCount, int rightModificationCount)
-        {
-            if (testingOneActionOnce)
-            {
-                return (leftModificationCount + rightModificationCount == 1);
-            }
-            return (leftModificationCount > 0 && rightModificationCount > 0);
-        }
-
-        public static bool ShouldNextModificationBeOnLeft(bool testingOneActionTwice, int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
-        {
-            // ak left keep prob je 0.7, tak 70% šanca že ďalšia modifikácia bude na pravej strane, a 30% šanca že bude na ľavej strane
-            if (!testingOneActionTwice) return (Random.Shared.NextDouble() >= leftKeepProbability);
-
-            if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
-            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
-
-            return (Random.Shared.NextDouble() >= leftKeepProbability);
-        }
-
         public static bool ShouldNextModificationBeOnLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
         {
             if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
@@ -110,15 +90,6 @@ namespace Shared
             if (numberOfAllowedMods != 1) return false;
 
             return sumOfMaxMods == 1;
-        }
-
-        public static bool LearnIfCurrentlyTestingOneActionTwice(int resultSize, int numberOfAllowedMods, long sumOfMaxMods)
-        {
-            if (resultSize < 2) return false;
-
-            if (numberOfAllowedMods != 1) return false;
-
-            return sumOfMaxMods == 2;
         }
 
         public static long GetMaxActionsSum(bool isAllowedAdd = false, bool isAllowedRemove = false, bool isAllowedChange = false, bool isAllowedShift = false,

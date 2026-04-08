@@ -28,22 +28,22 @@ namespace PersonMaker
         private static int PreperedRemovals = 0;
         private static int PreperedAdditions = 0;
 
-        public static int Iterations { get; set; } = 5;
-        public static bool AllowChange { get; set; } = true;
-        public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdditions { get; set; } = true;
-        public static int MaxAllowedChanges { get; set; } = int.MaxValue;
-        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
-        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
-        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
+        private static int Iterations { get; set; } = 5;
+        private static bool AllowChange { get; set; } = true;
+        private static bool AllowRemove { get; set; } = true;
+        private static bool AllowAdditions { get; set; } = true;
+        private static int MaxAllowedChanges { get; set; } = int.MaxValue;
+        private static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        private static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        private static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
 
-        public static string ChangeLogText = "";
-        public static Person? BasePerson { get; set; }
-        public static Person? LeftPerson { get; set; }
-        public static Person? RightPerson { get; set; }
-        public static Person? ResultPerson { get; set; }
-        public static bool WriteSteps { get; set; } = false;
-        public static bool TestingOneActionOnce = false;
+        private static string ChangeLogText = "";
+        private static Person? BasePerson { get; set; }
+        private static Person? LeftPerson { get; set; }
+        private static Person? RightPerson { get; set; }
+        private static Person? ResultPerson { get; set; }
+        private static bool WriteSteps { get; set; } = false;
+        private static bool TestingOneActionOnce = false;
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory, bool writeSteps)
         {
             if (numberIterations <= 0)
@@ -107,33 +107,29 @@ namespace PersonMaker
                     string rightStepName = "right_step" + i;
                     string baseStepName = "base_step" + i;
 
-                    // Generovanie akcii pre pravy a lavy branch
-                    AtributeAction actionR = actions[i].Right;
-                    AtributeAction actionL = actions[i].Left;
-
-                    if (actionR == AtributeAction.KEEP && actionL == AtributeAction.KEEP)
+                    if (actions[i].Base == AtributeAction.KEEP)
                     {
                         ChangeLogText += "L, R, B:\n";
-                        ExecuteAction(LeftPerson!, BasePerson!, i, actionL, faker, iteration);
+                        ExecuteAction(LeftPerson!, BasePerson!, i, actions[i].Base, faker);
                         continue;
                     }
-                    else if (actionR == AtributeAction.KEEP)
-                    {
-                        ChangeLogText += "L, B:\n";
-                        ExecuteAction(LeftPerson!, BasePerson!, i, actionL, faker, iteration);
-                        if (WriteSteps)
-                        {
-                            XMLOutput.Export(LeftPerson!, leftStepName, null, pathToStepsL);
-                            XMLOutput.Export(BasePerson!, baseStepName, null, pathToStepsB);
-                        }
-                    }
-                    else if (actionL == AtributeAction.KEEP)
+                    else if (actions[i].Left == AtributeAction.KEEP)
                     {
                         ChangeLogText += "R, B:\n";
-                        ExecuteAction(RightPerson!, BasePerson!, i, actionR, faker, iteration);
+                        ExecuteAction(RightPerson!, BasePerson!, i, actions[i].Base, faker);
                         if (WriteSteps)
                         {
                             XMLOutput.Export(RightPerson!, rightStepName, null, pathToStepsR);
+                            XMLOutput.Export(BasePerson!, baseStepName, null, pathToStepsB);
+                        }
+                    }
+                    else if (actions[i].Right == AtributeAction.KEEP)
+                    {
+                        ChangeLogText += "L, B:\n";
+                        ExecuteAction(LeftPerson!, BasePerson!, i, actions[i].Base, faker);
+                        if (WriteSteps)
+                        {
+                            XMLOutput.Export(LeftPerson!, leftStepName, null, pathToStepsL);
                             XMLOutput.Export(BasePerson!, baseStepName, null, pathToStepsB);
                         }
                     }
@@ -202,6 +198,11 @@ namespace PersonMaker
                 }
             }
 
+            if (!TestingOneActionOnce && (leftModificationCount == 0 && rightModificationCount == 0))
+            {
+                throw new Exception("Vygenerovaný výsledok neobsahuje modifikácie na jednej strane. Chyba generátora.");
+            }
+
             while (actions.Count < baseAtributeCount)
             {
                 var randIndex = Random.Shared.Next(actions.Count + 1);
@@ -234,7 +235,7 @@ namespace PersonMaker
             return action;
         }
 
-        private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker, int iteration)
+        private static void ExecuteAction(Person branchPerson, Person basePerson, int i, AtributeAction action, Faker faker)
         {
             if (action == AtributeAction.KEEP)
             {

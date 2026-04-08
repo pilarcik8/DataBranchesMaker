@@ -22,26 +22,26 @@ namespace SetMaker
             public SetAction Base => Right == SetAction.KEEP ? Left : Right;
         }
 
-        static int PreperedRemovals = 0;
-        static int PreperedAdditions = 0;
+        private static int PreperedRemovals = 0;
+        private static int PreperedAdditions = 0;
 
         //Konfigurácia generovania dát
-        public static int MaxResultSize { get; set; } = 10;
-        public static int MinResultSize { get; set; } = 10;
-        public static int Iterations { get; set; } = 5;
-        public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdditions { get; set; } = true;
-        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
-        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
-        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
-        public static string ChangeLogText = "";
-        public static bool WriteSteps { get; set; } = false;
-        public static bool ShuffleBaseLeftRight { get; set; } = false;
-        public static HashSet<string> BaseSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static bool TestingOneActionOnce = false;
+        private static int MaxResultSize { get; set; } = 10;
+        private static int MinResultSize { get; set; } = 10;
+        private static int Iterations { get; set; } = 5;
+        private static bool AllowRemove { get; set; } = true;
+        private static bool AllowAdditions { get; set; } = true;
+        private static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        private static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        private static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
+        private static string ChangeLogText = "";
+        private static bool WriteSteps { get; set; } = false;
+        private static bool ShuffleBaseLeftRight { get; set; } = false;
+        private static HashSet<string> BaseSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static bool TestingOneActionOnce = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle, bool writeSteps)
         {
@@ -115,29 +115,26 @@ namespace SetMaker
                     string baseStepName = "base_step" + i;
 
                     string element = ResultSet.ElementAt(i);
-                    var leftAct = actions[i].Left;
-                    var rightAct = actions[i].Right;
-                    var baseAct = actions[i].Base;
 
-                    if (leftAct == SetAction.KEEP && rightAct == SetAction.KEEP)
+                    if (actions[i].Base == SetAction.KEEP)
                     {
                         ChangeLogText += "L, R, B\n";
-                        ExecuteAction(RightSet, BaseSet, element, rightAct, faker, iteration);
+                        ExecuteAction(RightSet, BaseSet, element, actions[i].Base, faker);
                     }
-                    else if (leftAct == SetAction.KEEP)
+                    else if (actions[i].Left == SetAction.KEEP)
                     {
                         ChangeLogText += "R, B\n";
-                        ExecuteAction(RightSet, BaseSet, element, rightAct, faker, iteration);
+                        ExecuteAction(RightSet, BaseSet, element, actions[i].Base, faker);
                         if (WriteSteps)
                         {
                             XMLOutput.Export(RightSet, rightStepName, null, pathToStepsR);
                             XMLOutput.Export(BaseSet, baseStepName, null, pathToStepsB);
                         }
                     }
-                    else if (rightAct == SetAction.KEEP)
+                    else if (actions[i].Right == SetAction.KEEP)
                     {
                         ChangeLogText += "L, B\n";
-                        ExecuteAction(LeftSet, BaseSet, element, leftAct, faker, iteration);
+                        ExecuteAction(LeftSet, BaseSet, element, actions[i].Base, faker);
                         if (WriteSteps)
                         {
                             XMLOutput.Export(LeftSet, leftStepName, null, pathToStepsL);
@@ -233,7 +230,7 @@ namespace SetMaker
             return resultSet;
         }
 
-        private static void ExecuteAction(HashSet<string> branchSet, HashSet<string> baseSet, string item, SetAction action, Faker faker, int iteration)
+        private static void ExecuteAction(HashSet<string> branchSet, HashSet<string> baseSet, string item, SetAction action, Faker faker)
         {
             if (action == SetAction.REMOVE)
             {
