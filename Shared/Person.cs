@@ -440,17 +440,6 @@ namespace Shared
             }
         }
 
-        internal static int? ParseNullableInt(string input)
-        {
-            if (input == null)
-                return null;
-
-            if (!int.TryParse(input, out var result))
-                throw new FormatException($"Cannot parse '{input}'.");
-
-            return result;
-        }
-
         public string GetAttributeName(int i)
         {
             return i switch
@@ -475,6 +464,7 @@ namespace Shared
             };
         }
 
+        // iba zakladné atribúty
         public Person Clone()
         {
             return new Person
