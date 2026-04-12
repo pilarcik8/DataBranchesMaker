@@ -22,26 +22,26 @@ namespace SetMaker
             public SetAction Base => Right == SetAction.KEEP ? Left : Right;
         }
 
-        static int PreperedRemovals = 0;
-        static int PreperedAdditions = 0;
+        private static int PreperedRemovals = 0;
+        private static int PreperedAdditions = 0;
 
         //Konfigurácia generovania dát
-        public static int MaxResultSize { get; set; } = 10;
-        public static int MinResultSize { get; set; } = 10;
-        public static int Iterations { get; set; } = 5;
-        public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdditions { get; set; } = true;
-        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
-        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
-        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
-        public static string ChangeLogText = "";
-        public static bool WriteSteps { get; set; } = false;
-        public static bool ShuffleBaseLeftRight { get; set; } = false;
-        public static HashSet<string> BaseSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
-        public static bool TestingOneActionOnce = false;
+        private static int MaxResultSize { get; set; } = 10;
+        private static int MinResultSize { get; set; } = 10;
+        private static int Iterations { get; set; } = 5;
+        private static bool AllowRemove { get; set; } = true;
+        private static bool AllowAdditions { get; set; } = true;
+        private static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        private static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        private static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SetMakerOutput");
+        private static string ChangeLogText = "";
+        private static bool WriteSteps { get; set; } = false;
+        private static bool ShuffleBaseLeftRight { get; set; } = false;
+        private static HashSet<string> BaseSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static HashSet<string> LeftSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static HashSet<string> RightSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static HashSet<string> ResultSet { get; set; } = new HashSet<string>(StringComparer.Ordinal);
+        private static bool TestingOneActionOnce = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool shuffle, bool writeSteps)
         {

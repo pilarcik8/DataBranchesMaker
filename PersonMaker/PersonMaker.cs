@@ -28,22 +28,22 @@ namespace PersonMaker
         private static int PreperedRemovals = 0;
         private static int PreperedAdditions = 0;
 
-        public static int Iterations { get; set; } = 5;
-        public static bool AllowChange { get; set; } = true;
-        public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdditions { get; set; } = true;
-        public static int MaxAllowedChanges { get; set; } = int.MaxValue;
-        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
-        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
-        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
+        private static int Iterations { get; set; } = 5;
+        private static bool AllowChange { get; set; } = true;
+        private static bool AllowRemove { get; set; } = true;
+        private static bool AllowAdditions { get; set; } = true;
+        private static int MaxAllowedChanges { get; set; } = int.MaxValue;
+        private static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        private static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        private static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PersonMakerOutput");
 
-        public static string ChangeLogText = "";
-        public static Person? BasePerson { get; set; }
-        public static Person? LeftPerson { get; set; }
-        public static Person? RightPerson { get; set; }
-        public static Person? ResultPerson { get; set; }
-        public static bool WriteSteps { get; set; } = false;
-        public static bool TestingOneActionOnce = false;
+        private static string ChangeLogText = "";
+        private static Person? BasePerson { get; set; }
+        private static Person? LeftPerson { get; set; }
+        private static Person? RightPerson { get; set; }
+        private static Person? ResultPerson { get; set; }
+        private static bool WriteSteps { get; set; } = false;
+        private static bool TestingOneActionOnce = false;
         public static void SetParameters(int numberIterations, bool changesAllowed, bool removingAllowed, bool addingAllowed, string outputDirectory, bool writeSteps)
         {
             if (numberIterations <= 0)

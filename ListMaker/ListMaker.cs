@@ -40,35 +40,35 @@ namespace ListMaker
         private static int MadeAdditions = 0;
         private static int MadeShifts = 0;
 
-        public static int EndIteration { get; set; } = 5;
+        private static int EndIteration { get; set; } = 5;
         // Povolenie jednotlivých akcií
-        public static bool AllowRemove { get; set; } = true;
-        public static bool AllowAdd { get; set; } = true;
-        public static bool AllowShift { get; set; } = true;
+        private static bool AllowRemove { get; set; } = true;
+        private static bool AllowAdd { get; set; } = true;
+        private static bool AllowShift { get; set; } = true;
         // Maximálny počet povolených akcií (globálne pre všetky iterácie)
-        public static int MaxAllowedRemovals { get; set; } = int.MaxValue;
-        public static int MaxAllowedAdditions { get; set; } = int.MaxValue;
-        public static int MaxAllowedShifts { get; set; } = int.MaxValue;
+        private static int MaxAllowedRemovals { get; set; } = int.MaxValue;
+        private static int MaxAllowedAdditions { get; set; } = int.MaxValue;
+        private static int MaxAllowedShifts { get; set; } = int.MaxValue;
 
         // Veľkosť očakávaného výsledku (originálneho xml)
-        public static int MaxResultSize { get; set; } = 10;
-        public static int MinResultSize { get; set; } = 10;
-        public static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
-        public static string ChangeLogText = "";
-        public static bool WriteSteps { get; set; } = false;
+        private static int MaxResultSize { get; set; } = 10;
+        private static int MinResultSize { get; set; } = 10;
+        private static string OutputDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ListMakerOutput");
+        private static string ChangeLogText = "";
+        private static bool WriteSteps { get; set; } = false;
 
         // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP
         // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie = xmldiff nahodne vyberie ale sharpdifflib oznaci ako konflikt
-        public static bool LastElementWasRemovedFromPosition = false;
+        private static bool LastElementWasRemovedFromPosition = false;
 
-        public static HashSet<string> UsedShiftItems = new HashSet<string>();
+        private static HashSet<string> NotUsebleShiftTargets = new HashSet<string>();
 
-        public static List<string> ResultList = new List<string>();
-        public static List<string> RightList = new List<string>();
-        public static List<string> LeftList = new List<string>();
-        public static List<string> BaseList = new List<string>();
-        public static bool TestingOneActionTwice = false;
-        public static bool TestingOneActionOnce = false;
+        private static List<string> ResultList = new List<string>();
+        private static List<string> RightList = new List<string>();
+        private static List<string> LeftList = new List<string>();
+        private static List<string> BaseList = new List<string>();
+        private static bool TestingOneActionTwice = false;
+        private static bool TestingOneActionOnce = false;
 
         public static void SetParameters(int numberIterations, bool removingAllowed, bool addingAllowed, bool shiftingAllowed, string outputDirectory, int minResultSize, int maxResultSize, bool writeSteps)
         {
@@ -241,7 +241,7 @@ namespace ListMaker
             MadeShifts = 0;
 
             ChangeLogText = string.Empty;
-            UsedShiftItems.Clear();
+            NotUsebleShiftTargets.Clear();
 
             int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
@@ -275,6 +275,7 @@ namespace ListMaker
             }
             else if (action == ListAction.REMOVAL)
             {
+                NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je odstraneny element
                 int baseIndex = baseList.IndexOf(item);
                 int branchIndex = branchList.IndexOf(item);
 
@@ -287,6 +288,7 @@ namespace ListMaker
             }
             else if (action == ListAction.ADDITION)
             {
+                NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je add
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseList, LeftList, RightList, ResultList);
 
                 int branchIndex = branchList.IndexOf(item);
@@ -301,34 +303,26 @@ namespace ListMaker
             }
             else if (action == ListAction.SHIFT)
             {
-                UsedShiftItems.Add(item);
-                int elementAtBaseIndex = baseList.IndexOf(item);
-
-                // výmena (swap) susediacich elementov spolu s dalším shiftom môže spôsobiť poradie elementov ktoré sa nedá nájť deteminicky
-                if (!TestingOneActionOnce)
-                {
-                    if (elementAtBaseIndex > 0)
-                    {
-                        UsedShiftItems.Add(baseList[elementAtBaseIndex - 1]);
-                    }
-                    if (elementAtBaseIndex < baseList.Count - 1)
-                    {
-                        UsedShiftItems.Add(baseList[elementAtBaseIndex + 1]);
-                    }
-                }
+                NotUsebleShiftTargets.Add(item); // zdroj
+                
                 // ziskam elementy ktore su v base aj branch a neboli pouzite pri inom shifte
-                List<string> baseListExceptDangerousTargets = new List<string>(baseList).Except(UsedShiftItems).ToList();
-                List<string> elementsThatArentInBranch = baseListExceptDangerousTargets.Except(branchList).ToList();
-                baseListExceptDangerousTargets = baseListExceptDangerousTargets.Except(elementsThatArentInBranch).ToList();
+                List<string> exceptDangerousTargets = ResultList.Except(NotUsebleShiftTargets).ToList(); //odstran uz pouzite source/target
 
-                var count = baseListExceptDangerousTargets.Count();
+                int indexElementAtResult = ResultList.IndexOf(item);
+
+                if (indexElementAtResult > 0)
+                {
+                    NotUsebleShiftTargets.Add(ResultList[indexElementAtResult - 1]); //target by bol source pozicia
+                }
+
+                var count = exceptDangerousTargets.Count();
                 if (count == 0) throw new InvalidOperationException("Žiadne elemnty neboli nájdené ako target");
-                var targetItem = baseListExceptDangerousTargets[Random.Shared.Next(count)];
-
+                var targetItem = exceptDangerousTargets[Random.Shared.Next(count)];
+                
                 int oldBaseIndex = baseList.IndexOf(item);
                 int oldBranchIndex = branchList.IndexOf(item);
 
-                UsedShiftItems.Add(targetItem);
+                NotUsebleShiftTargets.Add(targetItem); // target
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -393,8 +387,9 @@ namespace ListMaker
         private static bool CanBeActionExecuted(ListAction action, string actualElement)
         {
             if (GetRemainingNumberOfUsesOfAction(action) == 0) return false;
-            // shift tu preniesol prvok ?
-            if (UsedShiftItems.Contains(actualElement)) return false; 
+
+            // je to už shift target
+            if (NotUsebleShiftTargets.Contains(actualElement)) return false; 
 
             if (action == ListAction.REMOVAL)
             {
@@ -404,10 +399,9 @@ namespace ListMaker
             {
                 if (LastElementWasRemovedFromPosition) return false;
 
-                // aby sme nepocitali elementy ktore boli odstranene z base
-                var list = ResultList.Intersect(BaseList);
-                // je miesto na shift?
-                if (list.Count() - UsedShiftItems.Distinct().Count() <= 3) return false;
+                // je miesto pre shift?
+                // predcházdajúci element pred zdrojom + zdroj + target = 3
+                if (ResultList.Except(NotUsebleShiftTargets).Count() < 3) return false;
             }
             return true; // add, keep
         }
@@ -420,6 +414,7 @@ namespace ListMaker
 
             int evenChance = Math.Max(1, ResultList.Count);
 
+            // nepekný fix aby pri 1 - 2 operaciach to bolo viacej roztiahnute
             if (TestingOneActionOnce || TestingOneActionTwice)
             {
                 return Random.Shared.Next(evenChance) != 0;          

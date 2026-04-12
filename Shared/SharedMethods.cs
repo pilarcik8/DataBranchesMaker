@@ -30,6 +30,7 @@ namespace Shared
             return (Random.Shared.NextDouble() >= leftKeepProbability);
         }
 
+        // sice to ze 2 operacia bude vzdy na druhej strane ako prva je zjednodusenie ale generovanie je rychlejsie lebo nemusim testovat ci je 3way a opakovat iteraciu
         public static bool ShouldNextModificationBeOnLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
         {
             if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
