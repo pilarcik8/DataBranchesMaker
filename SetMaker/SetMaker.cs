@@ -192,13 +192,13 @@ namespace SetMaker
             int rightModificationCount = 0;
 
             var sumOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals);
-            var sealingOfMods = Math.Min(ResultSet.Count, sumOfMaxMods);
+            var sealingOfMods = (int)Math.Min(ResultSet.Count, sumOfMaxMods) + 1;
             var bottomOfMods = TestingOneActionOnce ? 1 : 2;
-            var numberOfMods = Random.Shared.Next(bottomOfMods, (int)(sealingOfMods + 1));
 
+            var numberOfMods = Random.Shared.Next(bottomOfMods, sealingOfMods);
             for (int i = 0; i < numberOfMods; i++)
             {
-                if (SharedMethods.ShouldNextModificationBeOnLeft(leftModificationCount, rightModificationCount, leftKeepProbability))
+                if (Random.Shared.NextDouble() >= leftKeepProbability)
                 {
                     actions.Add(new RowAction { Left = GetNonKeepAction(), Right = SetAction.KEEP });
                     leftModificationCount++;
@@ -210,12 +210,38 @@ namespace SetMaker
                 }
             }
 
+            if (!SharedMethods.IsValidXmlOuput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
+            {
+                SwitchActionsOfOneRow(actions);
+            }
+
             while (actions.Count < ResultSet.Count)
             {
                 var randIndex = Random.Shared.Next(actions.Count + 1);
                 actions.Insert(randIndex, new RowAction { Left = SetAction.KEEP, Right = SetAction.KEEP });
             }
             return actions;
+        }
+
+        private static void SwitchActionsOfOneRow(List<RowAction> actions)
+        {
+            int rndIndex = Random.Shared.Next(actions.Count);
+            int keepsCount = (actions[rndIndex].Left == SetAction.KEEP ? 1 : 0) + (actions[rndIndex].Right == SetAction.KEEP ? 1 : 0);
+
+            if (keepsCount != 1)
+            {
+                throw new InvalidOperationException("Nesprávny parameter");
+            }
+
+            var nonKeepAct = actions[rndIndex].Left != SetAction.KEEP ? actions[rndIndex].Left : actions[rndIndex].Right;
+            if (actions[rndIndex].Left == SetAction.KEEP)
+            {
+                actions[rndIndex] = new RowAction { Left = nonKeepAct, Right = SetAction.KEEP };
+            }
+            else if (actions[rndIndex].Right == SetAction.KEEP)
+            {
+                actions[rndIndex] = new RowAction { Left = SetAction.KEEP, Right = nonKeepAct };
+            }
         }
 
         private static HashSet<string> MakeResultSet(int size, Faker faker)
@@ -243,8 +269,8 @@ namespace SetMaker
             }
             else if (action == SetAction.ADD)
             {
-                ChangeLogText += $"Adding element: '{item}'\n";
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseSet.ToList(), LeftSet.ToList(), RightSet.ToList(), ResultSet.ToList());
+                ChangeLogText += $"Adding element: '{newItem}'\n";
                 baseSet.Add(newItem);
                 branchSet.Add(newItem);
             }

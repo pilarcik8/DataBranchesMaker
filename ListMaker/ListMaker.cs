@@ -15,8 +15,8 @@ namespace ListMaker
         private enum ListAction
         {
             KEEP,
-            REMOVAL,
-            ADDITION,
+            REMOVE,
+            ADD,
             SHIFT
         }
 
@@ -24,13 +24,13 @@ namespace ListMaker
         private class Step
         {
             public string name { get; }
-            public List<string> listOfState { get; }
+            public List<string> stateOfListInCurrentIter { get; }
             public string pathToExport { get; }
 
             public Step(string name, List<string> listOfState, string pathToExport)
             {
                 this.name = name;
-                this.listOfState = new List<string>(listOfState);
+                this.stateOfListInCurrentIter = new List<string>(listOfState);
                 this.pathToExport = pathToExport;
             }
         }
@@ -57,8 +57,7 @@ namespace ListMaker
         private static string ChangeLogText = "";
         private static bool WriteSteps { get; set; } = false;
 
-        // Pomocná premenná, ktorá zabezpečí, že po REMOVE musí nasledovat KEEP
-        // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie = xmldiff nahodne vyberie ale sharpdifflib oznaci ako konflikt
+        // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie
         private static bool LastElementWasRemovedFromPosition = false;
 
         private static HashSet<string> NotUsebleShiftTargets = new HashSet<string>();
@@ -183,7 +182,7 @@ namespace ListMaker
                 }
 
                 // ujisti sa ze sme vytvorili 3way vetvi - ak nie opakuj iteraciu = prepis base/right/left
-                if (!SharedMethods.IsValidOutput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
+                if (!SharedMethods.IsValidXmlOuput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
                 {
                     steps.Clear();
                     iteration--;
@@ -194,7 +193,7 @@ namespace ListMaker
                 while (steps.Count > 0)
                 {
                     var step = steps.Pop();
-                    XMLOutput.Export(step.listOfState, step.name, null, step.pathToExport);
+                    XMLOutput.Export(step.stateOfListInCurrentIter, step.name, null, step.pathToExport);
                 }
 
                 XMLOutput.Export(LeftList, "left", iteration, OutputDirectory);
@@ -243,6 +242,8 @@ namespace ListMaker
             ChangeLogText = string.Empty;
             NotUsebleShiftTargets.Clear();
 
+            LastElementWasRemovedFromPosition = false;
+
             int elementCount = Random.Shared.Next(MinResultSize, MaxResultSize + 1);
 
             ResultList = CreateStartingList(faker, elementCount);
@@ -273,9 +274,12 @@ namespace ListMaker
             {
                 ChangeLogText += $"Keeping item: '{item}'\n";
             }
-            else if (action == ListAction.REMOVAL)
+            else if (action == ListAction.REMOVE)
             {
-                NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je odstraneny element
+                if (AllowShift)
+                {
+                    NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je odstraneny element
+                }
                 int baseIndex = baseList.IndexOf(item);
                 int branchIndex = branchList.IndexOf(item);
 
@@ -286,9 +290,12 @@ namespace ListMaker
                 branchList.Remove(item);
                 MadeRemovals++;
             }
-            else if (action == ListAction.ADDITION)
+            else if (action == ListAction.ADD)
             {
-                NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je add
+                if (AllowShift)
+                {
+                    NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je add
+                }
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseList, LeftList, RightList, ResultList);
 
                 int branchIndex = branchList.IndexOf(item);
@@ -303,17 +310,18 @@ namespace ListMaker
             }
             else if (action == ListAction.SHIFT)
             {
-                NotUsebleShiftTargets.Add(item); // zdroj
-                
-                // ziskam elementy ktore su v base aj branch a neboli pouzite pri inom shifte
-                List<string> exceptDangerousTargets = ResultList.Except(NotUsebleShiftTargets).ToList(); //odstran uz pouzite source/target
+                NotUsebleShiftTargets.Add(item); // zdroj                
 
+                // zakazeme predchadzajuci element, lebo ak ho vyberieme ako target, neposunieme item
+                // takziez tymto zabranime swapu keby dva shifty mali target druheho source - vtedy by mohol nastat false conflict
                 int indexElementAtResult = ResultList.IndexOf(item);
-
                 if (indexElementAtResult > 0)
                 {
-                    NotUsebleShiftTargets.Add(ResultList[indexElementAtResult - 1]); //target by bol source pozicia
+                    var previousElement = ResultList[indexElementAtResult - 1];
+                    NotUsebleShiftTargets.Add(previousElement);
                 }
+
+                List<string> exceptDangerousTargets = ResultList.Except(NotUsebleShiftTargets).ToList();
 
                 var count = exceptDangerousTargets.Count();
                 if (count == 0) throw new InvalidOperationException("Žiadne elemnty neboli nájdené ako target");
@@ -359,13 +367,13 @@ namespace ListMaker
             {
                 allowed.Add(ListAction.SHIFT);
             }
-            if (CanBeActionExecuted(ListAction.REMOVAL, actualElement))
+            if (CanBeActionExecuted(ListAction.REMOVE, actualElement))
             {
-                allowed.Add(ListAction.REMOVAL);
+                allowed.Add(ListAction.REMOVE);
             }
-            if (CanBeActionExecuted(ListAction.ADDITION, actualElement))
+            if (CanBeActionExecuted(ListAction.ADD, actualElement))
             {
-                allowed.Add(ListAction.ADDITION);
+                allowed.Add(ListAction.ADD);
             }
 
             LastElementWasRemovedFromPosition = false;
@@ -376,8 +384,8 @@ namespace ListMaker
         {
             return action switch
             {
-                ListAction.ADDITION => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
-                ListAction.REMOVAL => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
+                ListAction.ADD => AllowAdd ? MaxAllowedAdditions - MadeAdditions : 0,
+                ListAction.REMOVE => AllowRemove ? MaxAllowedRemovals - MadeRemovals : 0,
                 ListAction.SHIFT => AllowShift ? MaxAllowedShifts - MadeShifts : 0,
                 ListAction.KEEP => int.MaxValue, // KEEP nie je obmedzený
                 _ => throw new InvalidOperationException($"Unexpected action: {action}")
@@ -391,7 +399,7 @@ namespace ListMaker
             // je to už shift target
             if (NotUsebleShiftTargets.Contains(actualElement)) return false; 
 
-            if (action == ListAction.REMOVAL)
+            if (action == ListAction.REMOVE)
             {
                 if (LastElementWasRemovedFromPosition) return false;
             }
@@ -408,9 +416,9 @@ namespace ListMaker
 
         private static bool ShouldNextActionBeKeep()
         {
-            int remaningAdd = GetRemainingNumberOfUsesOfAction(ListAction.ADDITION);
+            int remaningAdd = GetRemainingNumberOfUsesOfAction(ListAction.ADD);
             int remaningShift = GetRemainingNumberOfUsesOfAction(ListAction.SHIFT);
-            int remaningRemove = GetRemainingNumberOfUsesOfAction(ListAction.REMOVAL);
+            int remaningRemove = GetRemainingNumberOfUsesOfAction(ListAction.REMOVE);
 
             int evenChance = Math.Max(1, ResultList.Count);
 
@@ -424,11 +432,11 @@ namespace ListMaker
             var allowed = new List<ListAction> { ListAction.KEEP };
             if (remaningAdd > 0)
             {
-                allowed.Add(ListAction.ADDITION);
+                allowed.Add(ListAction.ADD);
             }
             if (remaningRemove > 0)
             {
-                allowed.Add(ListAction.REMOVAL);
+                allowed.Add(ListAction.REMOVE);
             }
             if (remaningShift > 0)
             {

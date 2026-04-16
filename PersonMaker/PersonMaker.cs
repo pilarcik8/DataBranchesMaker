@@ -178,19 +178,19 @@ namespace PersonMaker
         private static List<RowAction> GenerateRowActions(double leftKeepProbability)
         {
             var actions = new List<RowAction>();
-            int baseAtributeCount = typeof(Person).GetProperties().Length; //null nepocita
+            int baseAtributeCount = typeof(Person).GetProperties().Length;
 
             int leftModificationCount = 0;
             int rightModificationCount = 0;
 
             var sumOfMaxMods = SharedMethods.GetMaxActionsSum(isAllowedAdd: AllowAdditions, isAllowedRemove: AllowRemove, isAllowedChange: AllowChange, maxAdd: MaxAllowedAdditions, maxRem: MaxAllowedRemovals, maxChange: MaxAllowedChanges);
-            var sealingOfMods = Math.Min(baseAtributeCount, sumOfMaxMods);
+            var sealingOfMods = (int)Math.Min(baseAtributeCount, sumOfMaxMods) + 1;
             var bottomOfMods = TestingOneActionOnce ? 1 : 2;
-            var numberOfMods = Random.Shared.Next(bottomOfMods, (int)(sealingOfMods + 1));
 
+            var numberOfMods = Random.Shared.Next(bottomOfMods, (int)(sealingOfMods + 1));
             for (int i = 0; i < numberOfMods; i++)
             {
-                if (SharedMethods.ShouldNextModificationBeOnLeft(leftModificationCount, rightModificationCount, leftKeepProbability))
+                if (Random.Shared.NextDouble() >= leftKeepProbability)
                 {
                     actions.Add(new RowAction { Left = GetNonKeepAction(), Right = AtributeAction.KEEP });
                     leftModificationCount++;
@@ -202,6 +202,11 @@ namespace PersonMaker
                 }
             }
 
+            if (!SharedMethods.IsValidXmlOuput(TestingOneActionOnce, leftModificationCount, rightModificationCount))
+            {
+                SwitchActionsOfOneRow(actions);
+            }
+
             while (actions.Count < baseAtributeCount)
             {
                 var randIndex = Random.Shared.Next(actions.Count + 1);
@@ -209,6 +214,27 @@ namespace PersonMaker
             }
             return actions;
         }
+        private static void SwitchActionsOfOneRow(List<RowAction> actions)
+        {
+            int rndIndex = Random.Shared.Next(actions.Count);
+            int keepsCount = (actions[rndIndex].Left == AtributeAction.KEEP ? 1 : 0) + (actions[rndIndex].Right == AtributeAction.KEEP ? 1 : 0);
+
+            if (keepsCount != 1)
+            {
+                throw new InvalidOperationException("Nesprávny parameter");
+            }
+
+            var nonKeepAct = actions[rndIndex].Left != AtributeAction.KEEP ? actions[rndIndex].Left : actions[rndIndex].Right;
+            if (actions[rndIndex].Left == AtributeAction.KEEP)
+            {
+                actions[rndIndex] = new RowAction { Left = nonKeepAct, Right = AtributeAction.KEEP };
+            }
+            else if (actions[rndIndex].Right == AtributeAction.KEEP)
+            {
+                actions[rndIndex] = new RowAction { Left = AtributeAction.KEEP, Right = nonKeepAct };
+            }
+        }
+
         private static AtributeAction GetNonKeepAction()
         {
             var allowed = new List<AtributeAction>();

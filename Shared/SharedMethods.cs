@@ -10,7 +10,7 @@ namespace Shared
 {
     public class SharedMethods  
     {
-        public static bool IsValidOutput(bool testingOneActionOnce, int leftModificationCount, int rightModificationCount)
+        public static bool IsValidXmlOuput(bool testingOneActionOnce, int leftModificationCount, int rightModificationCount)
         {
             if (testingOneActionOnce)
             {
@@ -24,15 +24,6 @@ namespace Shared
             // ak left keep prob je 0.7, tak 70% šanca že ďalšia modifikácia bude na pravej strane, a 30% šanca že bude na ľavej strane
             if (!testingOneActionTwice) return (Random.Shared.NextDouble() >= leftKeepProbability);
 
-            if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
-            else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
-
-            return (Random.Shared.NextDouble() >= leftKeepProbability);
-        }
-
-        // sice to ze 2 operacia bude vzdy na druhej strane ako prva je zjednodusenie ale generovanie je rychlejsie lebo nemusim testovat ci je 3way a opakovat iteraciu
-        public static bool ShouldNextModificationBeOnLeft(int leftModificationsCount, int rightModificationsCount, double leftKeepProbability)
-        {
             if (leftModificationsCount == 0 && rightModificationsCount == 1) return true;
             else if (leftModificationsCount == 1 && rightModificationsCount == 0) return false;
 
