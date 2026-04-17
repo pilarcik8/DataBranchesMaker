@@ -60,7 +60,10 @@ namespace ListMaker
         // pri odstraneny 2 za sebou iducich elementov merger nevie presne poradie
         private static bool LastElementWasRemovedFromPosition = false;
 
-        private static HashSet<string> NotUsebleShiftTargets = new HashSet<string>();
+        private static bool NextActionIsAlreadyDone = false;
+
+
+        private static HashSet<string> UsedAsReferenceItem = new HashSet<string>();
 
         private static List<string> ResultList = new List<string>();
         private static List<string> RightList = new List<string>();
@@ -135,6 +138,11 @@ namespace ListMaker
                 // Akcie sa vyberu a rovno vykonaju
                 for (int i = 0; i < elementCount; i++)
                 {
+                    if (NextActionIsAlreadyDone)
+                    {
+                        NextActionIsAlreadyDone = false;
+                        continue;
+                    }
                     var pathToSteps = Path.Combine(OutputDirectory, iteration.ToString(), "steps");
                     var pathToStepsL = Path.Combine(pathToSteps, "left");
                     var pathToStepsR = Path.Combine(pathToSteps, "right");
@@ -153,13 +161,15 @@ namespace ListMaker
 
                     if (leftAct == ListAction.KEEP && rightAct == ListAction.KEEP)
                     {
-                        ChangeLogText += "L, R, B:\n";
-                        // či dám left/right nezalezi
+                        ChangeLogText += "L, R, B:\n";                        
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                     }
                     else if (leftAct == ListAction.KEEP)
                     {
-                        ChangeLogText += "R, B:\n";
+                        if (rightAct != ListAction.SHIFT) // shift sa loguje inde, robi keep az potom shift
+                        {
+                            ChangeLogText += "R, B:\n";
+                        }
                         ExecuteAction(RightList, BaseList, item, rightAct, faker, iteration);
                         rightModificationCount++;
                         if (WriteSteps)
@@ -170,7 +180,10 @@ namespace ListMaker
                     }
                     else if (rightAct == ListAction.KEEP)
                     {
-                        ChangeLogText += "L, B:\n";
+                        if (leftAct != ListAction.SHIFT)
+                        {
+                            ChangeLogText += "L, B:\n";
+                        }
                         ExecuteAction(LeftList, BaseList, item, leftAct, faker, iteration);
                         leftModificationCount++;
                         if (WriteSteps)
@@ -240,7 +253,7 @@ namespace ListMaker
             MadeShifts = 0;
 
             ChangeLogText = string.Empty;
-            NotUsebleShiftTargets.Clear();
+            UsedAsReferenceItem.Clear();
 
             LastElementWasRemovedFromPosition = false;
 
@@ -272,19 +285,19 @@ namespace ListMaker
         {
             if (action == ListAction.KEEP)
             {
-                ChangeLogText += $"Keeping item: '{item}'\n";
+                ChangeLogText += $"Keeping item: '{item}'\n";                 
             }
             else if (action == ListAction.REMOVE)
             {
                 if (AllowShift)
                 {
-                    NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je odstraneny element
+                    UsedAsReferenceItem.Add(item); // pouzity referencny element
                 }
                 int baseIndex = baseList.IndexOf(item);
                 int branchIndex = branchList.IndexOf(item);
 
                 LastElementWasRemovedFromPosition = true;
-                ChangeLogText += $"Removing item: '{item}' at base index: '{baseIndex}' and branch index: '{branchIndex}'\n";
+                ChangeLogText += $"Removed item: '{item}' at base index: '{baseIndex}' and branch index: '{branchIndex}'\n";
 
                 baseList.Remove(item);
                 branchList.Remove(item);
@@ -294,62 +307,74 @@ namespace ListMaker
             {
                 if (AllowShift)
                 {
-                    NotUsebleShiftTargets.Add(item); // nechceme aby niekto mal target kde je add
+                    UsedAsReferenceItem.Add(item); // pouzity referencny element
                 }
                 string newItem = SharedMethods.GetNewUniqueWord(faker, BaseList, LeftList, RightList, ResultList);
 
-                int branchIndex = branchList.IndexOf(item);
-                int baseIndex = baseList.IndexOf(item);
+                int branchIndex = branchList.IndexOf(item) + 1;
+                int baseIndex = baseList.IndexOf(item) + 1;
 
                 baseList.Insert(baseIndex, newItem);
                 branchList.Insert(branchIndex, newItem);
 
-                ChangeLogText += $"Adding item: '{newItem}' at base index: '{baseIndex}' and branch index: '{branchIndex} behind element '{item}'\n";
+                ChangeLogText += $"Added item: '{newItem}' at base index: '{baseIndex}' and branch index: '{branchIndex} behind element '{item}'\n";
 
                 MadeAdditions++;
             }
             else if (action == ListAction.SHIFT)
             {
-                NotUsebleShiftTargets.Add(item); // zdroj                
-
-                // zakazeme predchadzajuci element, lebo ak ho vyberieme ako target, neposunieme item
-                // takziez tymto zabranime swapu keby dva shifty mali target druheho source - vtedy by mohol nastat false conflict
-                int indexElementAtResult = ResultList.IndexOf(item);
-                if (indexElementAtResult > 0)
+                UsedAsReferenceItem.Add(item); // referencny element
+                bool isFistElement = ResultList.First() == item;
+                string sourceItem = ResultList[ResultList.IndexOf(item) + 1];
+                if (isFistElement)
                 {
-                    var previousElement = ResultList[indexElementAtResult - 1];
-                    NotUsebleShiftTargets.Add(previousElement);
+                    sourceItem = item;
+                }
+                else 
+                {
+                    UsedAsReferenceItem.Add(sourceItem); // element co presuvame
                 }
 
-                List<string> exceptDangerousTargets = ResultList.Except(NotUsebleShiftTargets).ToList();
+                List<string> safeTargets = ResultList.Except(UsedAsReferenceItem).ToList();
 
-                var count = exceptDangerousTargets.Count();
+                var count = safeTargets.Count();
                 if (count == 0) throw new InvalidOperationException("Žiadne elemnty neboli nájdené ako target");
-                var targetItem = exceptDangerousTargets[Random.Shared.Next(count)];
-                
-                int oldBaseIndex = baseList.IndexOf(item);
-                int oldBranchIndex = branchList.IndexOf(item);
 
-                NotUsebleShiftTargets.Add(targetItem); // target
+                var targetItem = safeTargets[Random.Shared.Next(count)];                
+                int oldBaseIndex = baseList.IndexOf(sourceItem);
+                int oldBranchIndex = branchList.IndexOf(sourceItem);
 
-                baseList.Remove(item);
-                branchList.Remove(item);
+                UsedAsReferenceItem.Add(targetItem); // target element
 
-                //uložíme item za targetItem
+                baseList.Remove(sourceItem);
+                branchList.Remove(sourceItem);
+
+                // vložíme ZA targetItem
                 int baseIndex = baseList.IndexOf(targetItem) + 1;
                 int branchIndex = branchList.IndexOf(targetItem) + 1;
+                baseList.Insert(baseIndex, sourceItem);
+                branchList.Insert(branchIndex, sourceItem);
 
-                baseList.Insert(baseIndex, item);
-                branchList.Insert(branchIndex, item);
-
-                var itemBeforeBase = baseList[baseIndex - 1];
-                var itemBeforeBranch = branchList[branchIndex - 1];
-
-                ChangeLogText += $"Shifting element: '{item}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex}' behind element Base:'{itemBeforeBase}'\n";
+                if (!isFistElement) { 
+                    ChangeLogText += "L, R, B:\n";
+                    ChangeLogText += $"Keeping item: '{item} - Shift source reference'\n";
+                }
+                if (branchList == LeftList)
+                {
+                    ChangeLogText += "L, B:\n";
+                }
+                else
+                {
+                    ChangeLogText += "R, B:\n";
+                }
+                ChangeLogText += $"Shifted element: '{sourceItem}' from index Base:'{oldBaseIndex}', Branch:'{oldBranchIndex}' to 'Base:'{baseIndex}', Branch:'{branchIndex}' behind element Base:'{targetItem}'\n";
                 MadeShifts++;
 
-                // dalsí element sa nezmie modifikovať, lebo nastane rovnaký problém ako keď odstránime 2 prvky idúce za sebou vo vedlajsich vetviach (nedeterministicke poradie)
                 LastElementWasRemovedFromPosition = true;
+                if (!isFistElement)
+                {
+                    NextActionIsAlreadyDone = true;
+                }
             }
         }
 
@@ -396,8 +421,7 @@ namespace ListMaker
         {
             if (GetRemainingNumberOfUsesOfAction(action) == 0) return false;
 
-            // je to už shift target
-            if (NotUsebleShiftTargets.Contains(actualElement)) return false; 
+            if (UsedAsReferenceItem.Contains(actualElement)) return false; 
 
             if (action == ListAction.REMOVE)
             {
@@ -407,9 +431,12 @@ namespace ListMaker
             {
                 if (LastElementWasRemovedFromPosition) return false;
 
-                // je miesto pre shift?
-                // predcházdajúci element pred zdrojom + zdroj + target = 3
-                if (ResultList.Except(NotUsebleShiftTargets).Count() < 3) return false;
+                if (actualElement == ResultList.Last()) return false;
+
+                if (ResultList.Except(UsedAsReferenceItem).Count() < 3) return false;
+
+                var itemThatWillBeSource = ResultList[ResultList.IndexOf(actualElement) + 1];
+                if (UsedAsReferenceItem.Contains(itemThatWillBeSource)) return false;
             }
             return true; // add, keep
         }
